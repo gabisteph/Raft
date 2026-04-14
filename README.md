@@ -7,7 +7,7 @@ simular navio de descargue de navio aplicacado a algoritmo genético
 ---
 
 
-## 🛠️ Tecnologias utilizadas
+## Tecnologias utilizadas
 
 - JavaScript (ES Modules)
 - Three.js (renderização 3D)
@@ -30,4 +30,4 @@ Você só precisa de um navegador moderno:
 
 
 abra o termina e rode na pasta raft
-    npx http-server
+    npx serve
