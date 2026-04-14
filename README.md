@@ -30,4 +30,4 @@ Você só precisa de um navegador moderno:
 
 
 abra o termina e rode na pasta raft
-    npx serve
+- npx serve
