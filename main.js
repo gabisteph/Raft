@@ -154,20 +154,23 @@ ship.add(deck);
 /*
     CONTAINERS
 */
-const TOTAL_CONTAINERS = 20;
+const TOTAL_CONTAINERS = 24;
+
+const BLUE = 0x4d79ff;
+const GREEN = 0x3ddc84;
 
 const shipContainers = [];
 const shipCols = 4;
 const shipRows = 4;
 const shipLevels = 2;
 
-const containerWidth = 1.5;
-const containerHeight = 1.0;
-const containerDepth = 1;
+const containerWidth = 4;
+const containerHeight = 1.7;
+const containerDepth = 1.6;
 
-const spacingX = 1.8;
-const spacingZ = 1.5;
-const spacingY = 1.1;
+const spacingX = 4;
+const spacingZ = 1.8;
+const spacingY = 2;
 
 const offsetX = -((shipCols - 1) * spacingX) / 2 + 0.8;
 const offsetZ = -((shipRows - 1) * spacingZ) / 2;
@@ -177,63 +180,73 @@ const colors = [0xff4d4d, 0x3ddc84, 0x4d79ff, 0xffcc33, 0xff884d];
 
 let created = 0;
 
+const shipLayout = [
+  [
+    ["B", "B", "B", "B"],
+    ["B", "B", "G", "G"],
+    ["B", "B", "G", "G"],
+    ["B", "B", "G", "G"]
+  ],
+  [
+    ["B", "B", "G", "G"],
+    ["B", "B", null, "G"],
+    [null, null, null, null],
+    [null, null, "G", null]
+  ]
+];
 
-// primeiro andar inteiro
-for (let row = 0; row < shipRows; row++) {
-  for (let col = 0; col < shipCols; col++) {
-    if (created >= TOTAL_CONTAINERS) break;
+function getContainerColor(code) {
+  if (code === "B") return BLUE;
+  if (code === "G") return GREEN;
+  return null;
+}
 
-    const box = new THREE.Mesh(
-      new THREE.BoxGeometry(containerWidth, containerHeight, containerDepth),
-      new THREE.MeshPhongMaterial({
-        color: colors[Math.floor(Math.random() * colors.length)]
-      })
-    );
+let blueCount = 0;
+let greenCount = 0;
 
-    box.position.set(
-      offsetX + col * spacingX,
-      baseY,
-      offsetZ + row * spacingZ
-    );
+for (let level = 0; level < shipLevels; level++) {
+  for (let row = 0; row < shipRows; row++) {
+    for (let col = 0; col < shipCols; col++) {
+      const code = shipLayout[level][row][col];
+      if (!code) continue;
 
-    box.castShadow = true;
-    box.receiveShadow = true;
+      const color = getContainerColor(code);
+      if (!color) continue;
 
-    ship.add(box);
-    shipContainers.push(box);
-    box.userData.originalPosition = box.position.clone();
+      if (code === "B") blueCount++;
+      if (code === "G") greenCount++;
 
-    created++;
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(containerWidth, containerHeight, containerDepth),
+        new THREE.MeshPhongMaterial({ color })
+      );
+
+      box.position.set(
+        offsetX + col * spacingX,
+        baseY + level * spacingY,
+        offsetZ + row * spacingZ
+      );
+
+      box.castShadow = true;
+      box.receiveShadow = true;
+
+      ship.add(box);
+      shipContainers.push(box);
+      box.userData.originalPosition = box.position.clone();
+      box.userData.shipLevel = level;
+      box.userData.shipRow = row;
+      box.userData.shipCol = col;
+      box.userData.colorCode = code;
+    }
   }
 }
 
-// segundo andar, só até completar 20
-for (let row = 0; row < shipRows; row++) {
-  for (let col = 0; col < shipCols; col++) {
-    if (created >= TOTAL_CONTAINERS) break;
+if (shipContainers.length !== TOTAL_CONTAINERS) {
+  console.warn(`A matriz do barco tem ${shipContainers.length} containers, mas o TOTAL_CONTAINERS está em ${TOTAL_CONTAINERS}.`);
+}
 
-    const box = new THREE.Mesh(
-      new THREE.BoxGeometry(containerWidth, containerHeight, containerDepth),
-      new THREE.MeshPhongMaterial({
-        color: colors[Math.floor(Math.random() * colors.length)]
-      })
-    );
-
-    box.position.set(
-      offsetX + col * spacingX,
-      baseY + spacingY,
-      offsetZ + row * spacingZ
-    );
-
-    box.castShadow = true;
-    box.receiveShadow = true;
-
-    ship.add(box);
-    shipContainers.push(box);
-    box.userData.originalPosition = box.position.clone();
-
-    created++;
-  }
+if (blueCount !== 12 || greenCount !== 12) {
+  console.warn(`Quantidade de cores inválida: azul=${blueCount}, verde=${greenCount}. O esperado é 12 de cada.`);
 }
 
 /*
@@ -377,8 +390,8 @@ const pierBase = new THREE.Mesh(
 pierBase.position.set(9, 0.4, 0);
 pier.add(pierBase);
 // marcações de posição 5x2
-const pierCols = 5;
-const pierRows = 5;
+const pierCols = 6;
+const pierRows = 6;
 const pierLevels = 2;
 
 
