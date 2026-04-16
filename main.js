@@ -281,69 +281,6 @@ quay.castShadow = true;
 port.add(quay);
 
 
-// muro traseiro
-const backWall = new THREE.Mesh(
-  new THREE.BoxGeometry(26, 2.2, 0.5),
-  new THREE.MeshPhongMaterial({ color: 0x717780 })
-);
-backWall.position.set(11.5, 1.7, 6.7);
-backWall.castShadow = true;
-port.add(backWall);
-
-
-
-
-// postes de luz
-for (let i = 0; i < 4; i++) {
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.1, 5.5, 12),
-    new THREE.MeshPhongMaterial({ color: 0x5f6670 })
-  );
-  pole.position.set(3 + i * 6, 3, 5.2);
-  pole.castShadow = true;
-  port.add(pole);
-
-  const lamp = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.25, 1.2),
-    new THREE.MeshPhongMaterial({ color: 0xd9dde2, emissive: 0x222222 })
-  );
-  lamp.position.set(3 + i * 6, 5.8, 5.2);
-  lamp.castShadow = true;
-  port.add(lamp);
-}
-
-// galpão simples decorativo
-const warehouse = new THREE.Mesh(
-  new THREE.BoxGeometry(6, 3.5, 3.2),
-  new THREE.MeshPhongMaterial({ color: 0xa65f3c })
-);
-warehouse.position.set(20.5, 2.35, 4.6);
-warehouse.castShadow = true;
-warehouse.receiveShadow = true;
-port.add(warehouse);
-
-const warehouseRoof = new THREE.Mesh(
-  new THREE.BoxGeometry(6.4, 0.25, 3.6),
-  new THREE.MeshPhongMaterial({ color: 0x6d2f1f })
-);
-warehouseRoof.position.set(20.5, 4.2, 4.6);
-warehouseRoof.castShadow = true;
-port.add(warehouseRoof);
-
-// containers decorativos no porto
-const portColors = [0xc0392b, 0x2980b9, 0x27ae60, 0xf39c12];
-for (let i = 0; i < 6; i++) {
-  const deco = new THREE.Mesh(
-    new THREE.BoxGeometry(1.5, 1, 1),
-    new THREE.MeshPhongMaterial({
-      color: portColors[i % portColors.length]
-    })
-  );
-  deco.position.set(16 + (i % 3) * 1.8, 1.7 + Math.floor(i / 3) * 1.05, 1.8);
-  deco.castShadow = true;
-  port.add(deco);
-}
-
 /*
     PIER DE RECEBIMENTO 5x2
 */
@@ -497,7 +434,7 @@ function animate() {
 
   const speed = 0.07;
 
-  const stopPoint = 3.5;
+  const stopPoint = 10;
 
   if (state === "moving") {
     if (ship.position.x < stopPoint) {
