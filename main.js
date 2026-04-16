@@ -8,9 +8,9 @@ const scene = new THREE.Scene();
 /*
     CÂMERA
 */
-const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(5, 10, -15);
-camera.lookAt(2, 4, 5);
+const camera = new THREE.PerspectiveCamera(105, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(20, 15, -18);
+camera.lookAt(0, 0, 0);
 
 /*
     RENDER
@@ -164,13 +164,13 @@ const shipCols = 4;
 const shipRows = 4;
 const shipLevels = 2;
 
-const containerWidth = 4;
-const containerHeight = 1.7;
-const containerDepth = 1.6;
+const containerWidth = 3;
+const containerHeight = 1.21;
+const containerDepth = 1.28;
 
-const spacingX = 4;
-const spacingZ = 1.8;
-const spacingY = 2;
+const spacingX = 3.2;
+const spacingZ = 1.5;
+const spacingY = 1.3;
 
 const offsetX = -((shipCols - 1) * spacingX) / 2 + 0.8;
 const offsetZ = -((shipRows - 1) * spacingZ) / 2;
@@ -250,30 +250,6 @@ if (blueCount !== 12 || greenCount !== 12) {
 }
 
 /*
-    TEXTO
-*/
-const canvas = document.createElement('canvas');
-canvas.width = 512;
-canvas.height = 256;
-
-const ctx = canvas.getContext('2d');
-ctx.fillStyle = 'white';
-ctx.font = 'bold 100px Arial';
-ctx.textAlign = 'center';
-ctx.fillText('RAFT', 256, 150);
-
-const texture = new THREE.CanvasTexture(canvas);
-
-const text = new THREE.Mesh(
-  new THREE.PlaneGeometry(4, 2),
-  new THREE.MeshBasicMaterial({ map: texture, transparent: true })
-);
-
-text.position.set(0, 0.6, 4.05);
-text.rotation.x = -0.2;
-ship.add(text);
-
-/*
     PORTO / CAIS
 */
 const port = new THREE.Group();
@@ -282,21 +258,28 @@ scene.add(port);
 // plataforma principal do cais
 const quay = new THREE.Mesh(
   new THREE.BoxGeometry(26, 1.2, 14),
-  new THREE.MeshPhongMaterial({ color: 0x8d939c })
+  new THREE.MeshPhongMaterial({ color: 0x8b5a2b, shininess: 10 })
 );
+
+const textureLoader = new THREE.TextureLoader();
+const woodTexture = textureLoader.load('https://threejs.org/examples/textures/hardwood2_diffuse.jpg');
+const woodNormal = textureLoader.load('https://threejs.org/examples/textures/hardwood2_normal.jpg');
+
+woodTexture.wrapS = THREE.RepeatWrapping;
+woodTexture.wrapT = THREE.RepeatWrapping;
+woodTexture.repeat.set(8, 4);
+
+woodNormal.wrapS = THREE.RepeatWrapping;
+woodNormal.wrapT = THREE.RepeatWrapping;
+woodNormal.repeat.set(8, 4);
+
+
+
 quay.position.set(11.5, 0.6, 0);
 quay.receiveShadow = true;
 quay.castShadow = true;
 port.add(quay);
 
-// borda do cais
-const quayEdge = new THREE.Mesh(
-  new THREE.BoxGeometry(26, 0.35, 1.2),
-  new THREE.MeshPhongMaterial({ color: 0xc2c7ce })
-);
-quayEdge.position.set(11.5, 1.28, -6.4);
-quayEdge.castShadow = true;
-port.add(quayEdge);
 
 // muro traseiro
 const backWall = new THREE.Mesh(
@@ -307,24 +290,8 @@ backWall.position.set(11.5, 1.7, 6.7);
 backWall.castShadow = true;
 port.add(backWall);
 
-// faixa amarela de segurança
-const safetyLine = new THREE.Mesh(
-  new THREE.BoxGeometry(25, 0.03, 0.22),
-  new THREE.MeshBasicMaterial({ color: 0xffd400 })
-);
-safetyLine.position.set(11.5, 1.22, -5.5);
-port.add(safetyLine);
 
-// defensas do cais
-for (let i = 0; i < 8; i++) {
-  const fender = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.22, 1.2, 16),
-    new THREE.MeshPhongMaterial({ color: 0x1e1e1e })
-  );
-  fender.rotation.z = Math.PI / 2;
-  fender.position.set(1.5 + i * 2.8, 0.45, -6.75);
-  port.add(fender);
-}
+
 
 // postes de luz
 for (let i = 0; i < 4; i++) {
@@ -390,7 +357,7 @@ const pierBase = new THREE.Mesh(
 pierBase.position.set(9, 0.4, 0);
 pier.add(pierBase);
 // marcações de posição 5x2
-const pierCols = 6;
+const pierCols = 2;
 const pierRows = 6;
 const pierLevels = 2;
 
@@ -406,7 +373,7 @@ const pierOffsetZ = -((pierRows - 1) * pierSpacingZ) / 2;
 /*
     POSIÇÃO INICIAL
 */
-ship.position.set(-14, 0.3, -4.3);
+ship.position.set(-14, 0.3, -11);
 
 /*
     ESTADOS
@@ -463,8 +430,8 @@ function unloadContainers() {
     const level = currentIndex < splitPerLevel ? 0 : 1;
     const localIndex = currentIndex < splitPerLevel ? currentIndex : currentIndex - splitPerLevel;
   
-    const col = localIndex % pierCols;
-    const row = Math.floor(localIndex / pierCols);
+    const col = Math.floor(localIndex / pierCols);
+    const row = localIndex % pierCols;
   
     const target = new THREE.Vector3(
       pierBase.position.x + pierOffsetX + col * pierSpacingX,
@@ -528,13 +495,9 @@ function animate() {
 
   ship.rotation.z = Math.sin(Date.now() * 0.001) * 0.02;
 
-  const speed = 0.04;
-  const shipHalf = 6.8;
-  const quayHalf = 26 / 2;
-  const quayEdgeX = quay.position.x - quayHalf;
-  const pierHalf = 10.5 / 2;
-  const pierFrontX = pierBase.position.x - pierHalf;
-  const stopPoint = quayEdgeX - shipHalf - 0.2;
+  const speed = 0.07;
+
+  const stopPoint = 3.5;
 
   if (state === "moving") {
     if (ship.position.x < stopPoint) {
