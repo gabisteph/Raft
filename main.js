@@ -9,8 +9,8 @@ const scene = new THREE.Scene();
     CÂMERA
 */
 const camera = new THREE.PerspectiveCamera(105, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(20, 15, -18);
-camera.lookAt(0, 0, 0);
+camera.position.set(10, 18, -13);
+camera.lookAt(0, -2, 0);
 
 /*
     RENDER
@@ -81,7 +81,7 @@ scene.add(ambientLight);
 const waterGeometry = new THREE.PlaneGeometry(180, 180, 220, 220);
 
 const waterMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x1f6fb2,
+  color: 0x1a2323,
   metalness: 0.05,
   roughness: 0.18,
   transmission: 0.0,
@@ -256,30 +256,115 @@ const port = new THREE.Group();
 scene.add(port);
 
 // plataforma principal do cais
-const quay = new THREE.Mesh(
-  new THREE.BoxGeometry(26, 1.2, 14),
-  new THREE.MeshPhongMaterial({ color: 0x8b5a2b, shininess: 10 })
-);
-
 const textureLoader = new THREE.TextureLoader();
+
 const woodTexture = textureLoader.load('https://threejs.org/examples/textures/hardwood2_diffuse.jpg');
 const woodNormal = textureLoader.load('https://threejs.org/examples/textures/hardwood2_normal.jpg');
 
 woodTexture.wrapS = THREE.RepeatWrapping;
 woodTexture.wrapT = THREE.RepeatWrapping;
-woodTexture.repeat.set(8, 4);
 
 woodNormal.wrapS = THREE.RepeatWrapping;
 woodNormal.wrapT = THREE.RepeatWrapping;
-woodNormal.repeat.set(8, 4);
 
+const baseWoodMaterial = new THREE.MeshStandardMaterial({
+  map: woodTexture,
+  normalMap: woodNormal,
+  color: "#fae315",
+  roughness: 0.75,
+  metalness: 0.05
+});
 
-
-quay.position.set(11.5, 0.6, 0);
-quay.receiveShadow = true;
-quay.castShadow = true;
+const quay = new THREE.Group();
 port.add(quay);
 
+// dimensões do cais
+const width = 26;
+const depth = 14;
+
+// configuração das tábuas
+const plankWidth = 1.2;
+const gap = 0.15;
+const plankHeight = 0.25;
+
+const totalPlanks = Math.floor(width / (plankWidth + gap));
+
+for (let i = 0; i < totalPlanks; i++) {
+  const material = baseWoodMaterial.clone();
+
+  // variação de cor (essencial pra não ficar artificial)
+  material.color.offsetHSL(0, 0, (Math.random() - 0.5) * 0.1);
+
+  const plank = new THREE.Mesh(
+    new THREE.BoxGeometry(plankWidth, plankHeight, depth),
+    material
+  );
+
+  plank.position.set(
+    -width / 2 + i * (plankWidth + gap) + plankWidth / 2 + 11.5,
+    0.6,
+    0
+  );
+
+  // leve desalinhamento estilo madeira real
+  plank.rotation.y = (Math.random() - 0.5) * 0.03;
+
+  plank.castShadow = true;
+  plank.receiveShadow = true;
+
+  quay.add(plank);
+}
+// postes + cordas estilo RAFT
+const ropeMaterial = new THREE.MeshBasicMaterial({ color: 0xf5deb3 });
+const postMaterial = baseWoodMaterial.clone();
+
+const postCount = 7;
+const spacing = 4;
+
+// posição base (ajusta se quiser)
+const initX = -0.5;
+const zPos = 6.5;
+
+let lastPost = null;
+
+for (let i = 0; i < postCount; i++) {
+  // POSTE
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.1, 2.2, 8),
+    postMaterial
+  );
+
+  post.position.set(initX + i * spacing, 1.2, zPos);
+  post.castShadow = true;
+  port.add(post);
+
+  // CORDA (liga com o anterior)
+  if (lastPost) {
+    const start = lastPost.position;
+    const end = post.position;
+
+    const distance = start.distanceTo(end);
+
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, distance, 6),
+      ropeMaterial
+    );
+
+    // posição no meio
+    rope.position.set(
+      (start.x + end.x) / 2,
+      2.0, // altura da corda
+      (start.z + end.z) / 2
+    );
+
+    // rotação correta
+    rope.rotation.z = Math.PI / 2;
+
+    port.add(rope);
+  }
+
+  lastPost = post;
+}
 
 /*
     PIER DE RECEBIMENTO 5x2
@@ -289,7 +374,7 @@ scene.add(pier);
 
 const pierBase = new THREE.Mesh(
   new THREE.BoxGeometry(10.5, 0.8, 10.5),
-  new THREE.MeshPhongMaterial({ color: 0x9b7b55 })
+  new THREE.MeshPhongMaterial({ transparent: true, opacity: 0.0 })
 );
 pierBase.position.set(9, 0.4, 0);
 pier.add(pierBase);
