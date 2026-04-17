@@ -1,4 +1,5 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
+import * as THREE from 'three';
+import { Water } from 'three/addons/objects/Water.js';
 
 /*
     CENA
@@ -78,26 +79,54 @@ scene.add(ambientLight);
 /*
     ÁGUA
 */
-const waterGeometry = new THREE.PlaneGeometry(180, 180, 220, 220);
+//const waterGeometry = new THREE.PlaneGeometry(180, 180, 220, 220);
 
-const waterMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x1a2323,
-  metalness: 0.05,
-  roughness: 0.18,
-  transmission: 0.0,
-  transparent: true,
-  opacity: 0.9,
-  ior: 1.33,
-  reflectivity: 0.9,
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.12,
-  sheen: 0.3,
-  sheenColor: new THREE.Color(0x9fd6ff)
-});
+// const waterMaterial = new THREE.MeshPhysicalMaterial({
+//   color: 0x1a2323,
+//   metalness: 0.05,
+//   roughness: 0.18,
+//   transmission: 0.0,
+//   transparent: true,
+//   opacity: 0.9,
+//   ior: 1.33,
+//   reflectivity: 0.9,
+//   clearcoat: 1.0,
+//   clearcoatRoughness: 0.12,
+//   sheen: 0.3,
+//   sheenColor: new THREE.Color(0x9fd6ff)
+// });
 
-const water = new THREE.Mesh(waterGeometry, waterMaterial);
+// const water = new THREE.Mesh(waterGeometry, waterMaterial);
+// water.rotation.x = -Math.PI / 2;
+// water.receiveShadow = true;
+// scene.add(water);
+let water;
+
+const waterGeometry = new THREE.PlaneGeometry( 1000, 1000 );
+
+water = new Water(
+  waterGeometry,
+  {
+    textureWidth: 512,
+    textureHeight: 512,
+    waterNormals: new THREE.TextureLoader().load(
+      'https://threejs.org/examples/textures/waternormals.jpg',
+      function (texture) {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      }
+    ),
+
+    sunDirection: sun.position.clone().normalize(),
+    sunColor: 0x222222,
+
+    waterColor: new THREE.Color(0x020305),
+
+    distortionScale: 1.2,
+    fog: scene.fog !== undefined
+  }
+);
+
 water.rotation.x = -Math.PI / 2;
-water.receiveShadow = true;
 scene.add(water);
 
 /*
@@ -407,24 +436,24 @@ const startX = -12;
 /*
     ÁGUA
 */
-function updateWater(time) {
-  const pos = water.geometry.attributes.position;
+// function updateWater(time) {
+//   const pos = water.geometry.attributes.position;
 
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
+//   for (let i = 0; i < pos.count; i++) {
+//     const x = pos.getX(i);
+//     const y = pos.getY(i);
 
-    const wave1 = Math.sin(x * 0.18 + time * 1.4) * 0.18;
-    const wave2 = Math.cos(y * 0.22 + time * 1.1) * 0.14;
-    const wave3 = Math.sin((x + y) * 0.12 + time * 1.8) * 0.08;
-    const wave4 = Math.cos((x - y) * 0.16 + time * 1.5) * 0.06;
+//     const wave1 = Math.sin(x * 0.18 + time * 1.4) * 0.18;
+//     const wave2 = Math.cos(y * 0.22 + time * 1.1) * 0.14;
+//     const wave3 = Math.sin((x + y) * 0.12 + time * 1.8) * 0.08;
+//     const wave4 = Math.cos((x - y) * 0.16 + time * 1.5) * 0.06;
 
-    pos.setZ(i, wave1 + wave2 + wave3 + wave4);
-  }
+//     pos.setZ(i, wave1 + wave2 + wave3 + wave4);
+//   }
 
-  pos.needsUpdate = true;
-  water.geometry.computeVertexNormals();
-}
+//   pos.needsUpdate = true;
+//   water.geometry.computeVertexNormals();
+// }
 
 /*
     DESCARGA
@@ -513,7 +542,9 @@ function animate() {
   requestAnimationFrame(animate);
 
   const time = Date.now() * 0.0005;
-  updateWater(time);
+  
+
+  // updateWater(time)
 
   ship.rotation.z = Math.sin(Date.now() * 0.001) * 0.02;
 
@@ -567,12 +598,7 @@ function animate() {
       state = "moving";
     }
   }
-
-  water.material.color.setHSL(
-    0.58,
-    0.65,
-    0.38 + Math.sin(time * 0.8) * 0.015
-  );
+  water.material.uniforms[ 'time' ].value += 1.0 / 60.0;
 
   renderer.render(scene, camera);
 }
