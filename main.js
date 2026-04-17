@@ -9,9 +9,9 @@ const scene = new THREE.Scene();
 /*
     CÂMERA
 */
-const camera = new THREE.PerspectiveCamera(105, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(10, 18, -13);
-camera.lookAt(0, -2, 0);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(30, 20, -12);
+camera.lookAt(0, 0, 0);
 
 /*
     RENDER
@@ -129,61 +129,278 @@ water = new Water(
 water.rotation.x = -Math.PI / 2;
 scene.add(water);
 
+// BOTO
+
+const boto = new THREE.Group();
+
+// corpo
+const body = new THREE.Mesh(
+  new THREE.SphereGeometry(0.6, 16, 16),
+  new THREE.MeshStandardMaterial({ color: 0xff6fa5 })
+);
+body.scale.set(2, 1, 1);
+boto.add(body);
+
+// cabeça
+const head = new THREE.Mesh(
+  new THREE.SphereGeometry(0.4, 16, 16),
+  new THREE.MeshStandardMaterial({ color: 0xff85b5 })
+);
+head.position.set(1.4, 0, 0);
+boto.add(head);
+
+// nadadeira
+const fin = new THREE.Mesh(
+  new THREE.ConeGeometry(0.2, 0.6, 8),
+  new THREE.MeshStandardMaterial({ color: 0xff6fa5 })
+);
+fin.rotation.z = Math.PI;
+fin.position.set(-0.5, 0.5, 0);
+boto.add(fin);
+
+boto.position.set(0, 0.3, 5);
+scene.add(boto);
+
 /*
-    BARCO
+    tamanho container
+*/
+
+const spacingX = 3.6;
+const spacingZ = 1.18;
+const spacingY = 1.3;
+/*
+    BARCO - MODELO NOVO BASEADO NA IMAGEM
 */
 const ship = new THREE.Group();
 scene.add(ship);
 
-const hullGeometry = new THREE.BufferGeometry();
+const boatLength = 16.6;
+const boatWidth = 5.2;
+const hullHeight = 3.3;
+const wallThickness = 0.1;
+const rimHeight = 0.5;
+const rimThickness = 0.18;
+const floorThickness = 0.18;
 
-const vertices = new Float32Array([
-  -6.8,  0.0,  3.8,
-  -6.8,  0.0, -3.8,
-  -5.2, -1.5,  3.0,
-  -5.2, -1.5, -3.0,
-   5.2, -1.5,  3.0,
-   5.2, -1.5, -3.0,
-   6.8,  0.0,  3.8,
-   6.8,  0.0, -3.8
-]);
+const hullColor = 0xdddddd;
+const hullDark = 0xbfc4ca;
+const lineColor = 0x2c2c2c;
 
-const indices = [
-  0, 2, 4, 0, 4, 6,
-  1, 3, 5, 1, 5, 7,
-  2, 3, 5, 2, 5, 4,
-  0, 1, 7, 0, 7, 6,
-  0, 1, 3, 0, 3, 2,
-  6, 7, 5, 6, 5, 4
-];
+const innerLength = boatLength - 2 * wallThickness;
+const innerWidth = boatWidth - 2 * wallThickness;
 
-hullGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-hullGeometry.setIndex(indices);
-hullGeometry.computeVertexNormals();
+const deckHeight = hullHeight + floorThickness - 0.28;
 
-const hull = new THREE.Mesh(
-  hullGeometry,
-  new THREE.MeshPhongMaterial({ color: 0x061a3a, shininess: 35 })
-);
-hull.position.y = 0.5;
-hull.castShadow = true;
-hull.receiveShadow = true;
-ship.add(hull);
+function createBarge() {
+  const boat = new THREE.Group();
+// por 3
 
-// convés
-const deck = new THREE.Mesh(
-  new THREE.BoxGeometry(10.5, 0.25, 6.2),
-  new THREE.MeshPhongMaterial({ color: 0x1a2a4a, shininess: 20 })
-);
-deck.position.set(0, 0.95, 0);
-deck.castShadow = true;
-deck.receiveShadow = true;
-ship.add(deck);
+  const hullMaterial = new THREE.MeshStandardMaterial({
+    color: hullColor,
+    roughness: 0.72,
+    metalness: 0.08
+  });
+
+  const darkMaterial = new THREE.MeshStandardMaterial({
+    color: hullDark,
+    roughness: 0.75,
+    metalness: 0.05
+  });
+
+  const lineMaterial = new THREE.MeshStandardMaterial({
+    color: lineColor,
+    roughness: 0.9,
+    metalness: 0.0
+  });
+
+  // fundo externo
+  const bottom = new THREE.Mesh(
+    new THREE.BoxGeometry(boatLength, floorThickness, boatWidth),
+    darkMaterial
+  );
+  bottom.position.y = floorThickness / 2;
+  bottom.castShadow = true;
+  bottom.receiveShadow = true;
+  boat.add(bottom);
+
+  // paredes laterais retas
+  const leftWall = new THREE.Mesh(
+    new THREE.BoxGeometry(boatLength, hullHeight, wallThickness),
+    hullMaterial
+  );
+  leftWall.position.set(0, hullHeight / 2 + floorThickness, boatWidth / 2 - wallThickness / 2);
+  leftWall.castShadow = true;
+  leftWall.receiveShadow = true;
+  boat.add(leftWall);
+
+  const rightWall = new THREE.Mesh(
+    new THREE.BoxGeometry(boatLength, hullHeight, wallThickness),
+    hullMaterial
+  );
+  rightWall.position.set(0, hullHeight / 2 + floorThickness, -boatWidth / 2 + wallThickness / 2);
+  rightWall.castShadow = true;
+  rightWall.receiveShadow = true;
+  boat.add(rightWall);
+
+  // frente e trás retos
+  const frontWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, hullHeight, boatWidth - 2 * wallThickness),
+    hullMaterial
+  );
+  frontWall.position.set(boatLength / 2 - wallThickness / 2, hullHeight / 2 + floorThickness, 0);
+  frontWall.castShadow = true;
+  frontWall.receiveShadow = true;
+  boat.add(frontWall);
+
+  const backWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, hullHeight, boatWidth - 2 * wallThickness),
+    hullMaterial
+  );
+  backWall.position.set(-boatLength / 2 + wallThickness / 2, hullHeight / 2 + floorThickness, 0);
+  backWall.castShadow = true;
+  backWall.receiveShadow = true;
+  boat.add(backWall);
+
+  // piso interno
+  
+
+  const innerFloor = new THREE.Mesh(
+    new THREE.BoxGeometry(innerLength, 0.08, innerWidth),
+    new THREE.MeshStandardMaterial({
+      color: 0xf4f4f4,
+      roughness: 0.85,
+      metalness: 0.02
+    })
+  );
+  innerFloor.position.y = deckHeight;
+  innerFloor.castShadow = true;
+  innerFloor.receiveShadow = true;
+  boat.add(innerFloor);
+
+  // borda superior
+  const rimLongGeo = new THREE.BoxGeometry(boatLength, rimHeight, rimThickness);
+  const rimShortGeo = new THREE.BoxGeometry(rimThickness, rimHeight, boatWidth);
+
+  const rimLeft = new THREE.Mesh(rimLongGeo, lineMaterial);
+  rimLeft.position.set(0, hullHeight + floorThickness + rimHeight / 2, boatWidth / 2);
+  boat.add(rimLeft);
+
+  const rimRight = new THREE.Mesh(rimLongGeo, lineMaterial);
+  rimRight.position.set(0, hullHeight + floorThickness + rimHeight / 2, -boatWidth / 2);
+  boat.add(rimRight);
+
+  const rimFront = new THREE.Mesh(rimShortGeo, lineMaterial);
+  rimFront.position.set(boatLength / 2, hullHeight + floorThickness + rimHeight / 2, 0);
+  boat.add(rimFront);
+
+  const rimBack = new THREE.Mesh(rimShortGeo, lineMaterial);
+  rimBack.position.set(-boatLength / 2, hullHeight + floorThickness + rimHeight / 2, 0);
+  boat.add(rimBack);
+
+  // divisórias internas 4x4 mais juntas e retas
+    // piso superior com 4 linhas de containers e espacamento entre elas
+  const rows = 4;                 // 4 linhas
+  const colsPerRow = 4;           // 4 containers por linha
+
+  const containerLen = 1.1;       // comprimento do container
+  const containerWid = 0.8;       // largura do container
+
+  const gapBetweenRows = 0.28;    // ESPACAMENTO X entre as linhas
+  const sideMarginZ = 0.22;       // margem lateral
+  const frontBackMarginX = 0.35;  // margem nas pontas
+
+  const usableLength = colsPerRow * containerLen + frontBackMarginX * 2;
+  const usableWidth = rows * containerWid + (rows - 1) * gapBetweenRows + sideMarginZ * 2;
+
+  const dividerHeight = 0.22;
+  const dividerThickness = 0.12;
+  const dividerY = deckHeight + 0.11;
+
+  // moldura interna
+  const frameLong1 = new THREE.Mesh(
+    new THREE.BoxGeometry(usableLength, dividerHeight, 0.08),
+    hullMaterial
+  );
+  frameLong1.position.set(0, dividerY, usableWidth / 2);
+  boat.add(frameLong1);
+
+  const frameLong2 = frameLong1.clone();
+  frameLong2.position.z = -usableWidth / 2;
+  boat.add(frameLong2);
+
+  const frameShort1 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, dividerHeight, usableWidth),
+    hullMaterial
+  );
+  frameShort1.position.set(usableLength / 2, dividerY, 0);
+  boat.add(frameShort1);
+
+  const frameShort2 = frameShort1.clone();
+  frameShort2.position.x = -usableLength / 2;
+  boat.add(frameShort2);
+
+  // linhas separadoras ENTRE as 4 fileiras
+  for (let i = 1; i < rows; i++) {
+    const z = -usableWidth / 2 + sideMarginZ + i * containerWid + (i - 0.5) * gapBetweenRows;
+
+    const divider = new THREE.Mesh(
+      new THREE.BoxGeometry(usableLength, dividerHeight, dividerThickness),
+      hullMaterial
+    );
+    divider.position.set(0, dividerY, z);
+    divider.castShadow = true;
+    divider.receiveShadow = true;
+    boat.add(divider);
+  }
+
+    // separações no comprimento para repetir 4 vezes
+  for (let i = 1; i < colsPerRow; i++) {
+    const x = -usableLength / 2 + frontBackMarginX + i * containerLen;
+
+    const dividerX = new THREE.Mesh(
+      new THREE.BoxGeometry(dividerThickness, dividerHeight, usableWidth),
+      hullMaterial
+    );
+    dividerX.position.set(x, dividerY, 0);
+    dividerX.castShadow = true;
+    dividerX.receiveShadow = true;
+    boat.add(dividerX);
+  }
+
+  // contorno interno
+  const innerRimLong = new THREE.Mesh(
+    new THREE.BoxGeometry(usableLength, 0.07, 0.08),
+    darkMaterial
+  );
+  innerRimLong.position.set(0, dividerY + 0.08, usableWidth / 2);
+  boat.add(innerRimLong);
+
+  const innerRimLong2 = innerRimLong.clone();
+  innerRimLong2.position.z = -usableWidth / 2;
+  boat.add(innerRimLong2);
+
+  const innerRimShort = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.07, usableWidth),
+    darkMaterial
+  );
+  innerRimShort.position.set(usableLength / 2, dividerY + 0.08, 0);
+  boat.add(innerRimShort);
+
+  const innerRimShort2 = innerRimShort.clone();
+  innerRimShort2.position.x = -usableLength / 2;
+  boat.add(innerRimShort2);
+
+  return boat;
+}
+
+const bargeModel = createBarge();
+bargeModel.position.y = 0.35;
+ship.add(bargeModel);
 
 /*
     CONTAINERS
 */
-const TOTAL_CONTAINERS = 24;
+const TOTAL_CONTAINERS = 4;
 
 const BLUE = 0x4d79ff;
 const GREEN = 0x3ddc84;
@@ -193,17 +410,14 @@ const shipCols = 4;
 const shipRows = 4;
 const shipLevels = 2;
 
-const containerWidth = 3;
-const containerHeight = 1.21;
-const containerDepth = 1.28;
+const containerWidth = 2.6;
+const containerHeight = 1.13;
+const containerDepth = 1.06;
 
-const spacingX = 3.2;
-const spacingZ = 1.5;
-const spacingY = 1.3;
 
-const offsetX = -((shipCols - 1) * spacingX) / 2 + 0.8;
+const offsetX = -((shipCols - 1) * spacingX) / 2;
 const offsetZ = -((shipRows - 1) * spacingZ) / 2;
-const baseY = 1.6;
+const baseY =  deckHeight + 1;
 
 const colors = [0xff4d4d, 0x3ddc84, 0x4d79ff, 0xffcc33, 0xff884d];
 
@@ -223,6 +437,7 @@ const shipLayout = [
     [null, null, "G", null]
   ]
 ];
+
 
 function getContainerColor(code) {
   if (code === "B") return BLUE;
@@ -434,28 +649,6 @@ let currentIndex = 0;
 const startX = -12;
 
 /*
-    ÁGUA
-*/
-// function updateWater(time) {
-//   const pos = water.geometry.attributes.position;
-
-//   for (let i = 0; i < pos.count; i++) {
-//     const x = pos.getX(i);
-//     const y = pos.getY(i);
-
-//     const wave1 = Math.sin(x * 0.18 + time * 1.4) * 0.18;
-//     const wave2 = Math.cos(y * 0.22 + time * 1.1) * 0.14;
-//     const wave3 = Math.sin((x + y) * 0.12 + time * 1.8) * 0.08;
-//     const wave4 = Math.cos((x - y) * 0.16 + time * 1.5) * 0.06;
-
-//     pos.setZ(i, wave1 + wave2 + wave3 + wave4);
-//   }
-
-//   pos.needsUpdate = true;
-//   water.geometry.computeVertexNormals();
-// }
-
-/*
     DESCARGA
 */
 let activeMove = null;
@@ -535,6 +728,13 @@ function unloadContainers() {
   }
 }
 
+const botoArea = {
+  centerX: -10,
+  centerZ: 5,
+  radiusX: 6,
+  radiusZ: 4
+};
+
 /*
     ANIMAÇÃO
 */
@@ -599,6 +799,11 @@ function animate() {
     }
   }
   water.material.uniforms[ 'time' ].value += 1.0 / 60.0;
+  boto.position.x = botoArea.centerX + Math.sin(time * 0.8) * botoArea.radiusX;
+  boto.position.z = botoArea.centerZ + Math.cos(time * 0.5) * botoArea.radiusZ;
+
+  boto.position.y = 0.3 + Math.sin(time * 2) * 0.1;
+
 
   renderer.render(scene, camera);
 }
