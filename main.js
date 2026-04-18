@@ -20,6 +20,8 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.5;
 document.body.appendChild(renderer.domElement);
 
 /*
@@ -30,8 +32,8 @@ const sky = new THREE.Mesh(
   new THREE.ShaderMaterial({
     side: THREE.BackSide,
     uniforms: {
-      topColor: { value: new THREE.Color(0x4da3ff) },
-      bottomColor: { value: new THREE.Color(0xeaf6ff) }
+      topColor: { value: new THREE.Color(0x1e5a99) },
+      bottomColor: { value: new THREE.Color(0x7fb2d6) }
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -58,7 +60,7 @@ scene.add(sky);
 /*
     LUZ
 */
-const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+const sun = new THREE.DirectionalLight(0xffffff, 2.5);
 sun.position.set(18, 30, 12);
 sun.castShadow = true;
 sun.shadow.mapSize.width = 2048;
@@ -69,11 +71,11 @@ sun.shadow.camera.top = 40;
 sun.shadow.camera.bottom = -40;
 scene.add(sun);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
 directionalLight.position.set(10, 20, 10);
 scene.add(directionalLight);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
 scene.add(ambientLight);
 
 /*
@@ -117,11 +119,11 @@ water = new Water(
     ),
 
     sunDirection: sun.position.clone().normalize(),
-    sunColor: 0x222222,
+    sunColor: 0x111111,
 
-    waterColor: new THREE.Color(0x020305),
+    waterColor: new THREE.Color(0x1a0f06),
 
-    distortionScale: 1.2,
+    distortionScale: 1.0,
     fog: scene.fog !== undefined
   }
 );
