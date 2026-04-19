@@ -402,7 +402,7 @@ ship.add(bargeModel);
 /*
     CONTAINERS
 */
-const TOTAL_CONTAINERS = 4;
+const TOTAL_CONTAINERS = 24;
 
 const BLUE = 0x4d79ff;
 const GREEN = 0x3ddc84;
@@ -481,6 +481,9 @@ for (let level = 0; level < shipLevels; level++) {
 
       box.userData.isUnloaded = false;
       box.userData.pierSlot = null;
+      box.userData.isOnPier = false;
+      box.userData.isCarriedByHuman = false;
+      box.userData.isDelivered = false;
 
       box.castShadow = true;
       box.receiveShadow = true;
@@ -622,7 +625,7 @@ for (let i = 0; i < postCount; i++) {
 }
 
 /*
-    PIER DE RECEBIMENTO 5x2
+    PIER DE RECEBIMENTO 2x2
 */
 const pier = new THREE.Group();
 scene.add(pier);
@@ -649,6 +652,89 @@ const pierSlots = [
   ]
 ];
 
+// humano
+
+const human = new THREE.Group();
+scene.add(human);
+
+// corpo
+const humanBody = new THREE.Mesh(
+  new THREE.BoxGeometry(0.5, 1.2, 0.35),
+  new THREE.MeshStandardMaterial({ color: 0x2f4f4f })
+);
+humanBody.position.y = 0.9;
+human.add(humanBody);
+
+// cabeça
+const humanHead = new THREE.Mesh(
+  new THREE.SphereGeometry(0.22, 16, 16),
+  new THREE.MeshStandardMaterial({ color: 0xf1c27d })
+);
+humanHead.position.y = 1.75;
+human.add(humanHead);
+
+// pernas
+const legGeo = new THREE.BoxGeometry(0.16, 0.8, 0.16);
+const legMat = new THREE.MeshStandardMaterial({ color: 0x1f1f1f });
+
+const legLeft = new THREE.Mesh(legGeo, legMat);
+legLeft.position.set(-0.12, 0.35, 0);
+human.add(legLeft);
+
+const legRight = new THREE.Mesh(legGeo, legMat);
+legRight.position.set(0.12, 0.35, 0);
+human.add(legRight);
+
+// braços
+const armGeo = new THREE.BoxGeometry(0.14, 0.75, 0.14);
+const armMat = new THREE.MeshStandardMaterial({ color: 0xf1c27d });
+
+const armLeft = new THREE.Mesh(armGeo, armMat);
+armLeft.position.set(-0.38, 1.05, 0);
+human.add(armLeft);
+
+const armRight = new THREE.Mesh(armGeo, armMat);
+armRight.position.set(0.38, 1.05, 0);
+human.add(armRight);
+
+// logica de retirada para o humano
+function findNextBoxForHuman() {
+  // primeiro tenta pegar os de cima
+  for (let row = 0; row < pierRows; row++) {
+    for (let col = 0; col < pierCols; col++) {
+      const topBox = pierSlots[1][row][col];
+      if (topBox) {
+        return { box: topBox, level: 1, row, col };
+      }
+    }
+  }
+
+  // depois pega os de baixo sem nada em cima
+  for (let row = 0; row < pierRows; row++) {
+    for (let col = 0; col < pierCols; col++) {
+      const bottomBox = pierSlots[0][row][col];
+      const topBox = pierSlots[1][row][col];
+
+      if (bottomBox && !topBox) {
+        return { box: bottomBox, level: 0, row, col };
+      }
+    }
+  }
+
+  return null;
+}
+
+// estados do humano
+let humanState = "idle"; // idle, goingToPickup, carryingToDrop, returning
+let humanTargetBox = null;
+let humanPickupSlot = null;
+
+const humanSpeed = 0.05;
+const humanCarryHeight = 1.6;
+
+// posição inicial do humano
+human.position.set(pierBase.position.x + 5.5, pierBase.position.y + 0.4, pierBase.position.z - 3.5);
+
 // posição containers no pier pós animação
 const pierSpacingX = 3;
 const pierSpacingZ = 1.7;
@@ -656,6 +742,113 @@ const pierSpacingY = 1.4;
 
 const pierOffsetX = -((pierCols - 1) * pierSpacingX) / 2;
 const pierOffsetZ = -((pierRows - 1) * pierSpacingZ) / 2;
+
+const humanDropPoint = new THREE.Vector3(
+  pierBase.position.x + 6.0,
+  pierBase.position.y + 1.0,
+  pierBase.position.z + 4.0
+);
+
+
+// animacao humano
+function updateHuman() {
+  if (humanState === "idle") {
+    const next = findNextBoxForHuman();
+
+    if (next) {
+      humanTargetBox = next.box;
+      humanPickupSlot = {
+        level: next.level,
+        row: next.row,
+        col: next.col
+      };
+      humanState = "goingToPickup";
+    }
+  }
+
+  else if (humanState === "goingToPickup") {
+    if (!humanTargetBox) {
+      humanState = "idle";
+      return;
+    }
+
+    const targetPos = humanTargetBox.position.clone();
+    const dx = targetPos.x - human.position.x;
+    const dz = targetPos.z - human.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist > 0.08) {
+      human.position.x += (dx / dist) * humanSpeed;
+      human.position.z += (dz / dist) * humanSpeed;
+    } else {
+      // libera a vaga no instante em que o humano pega
+      if (humanPickupSlot) {
+        pierSlots[humanPickupSlot.level][humanPickupSlot.row][humanPickupSlot.col] = null;
+      }
+
+      humanTargetBox.userData.pierSlot = null;
+      humanTargetBox.userData.isOnPier = false;
+      humanTargetBox.userData.isCarriedByHuman = true;
+
+      humanState = "carryingToDrop";
+    }
+  }
+
+  else if (humanState === "carryingToDrop") {
+    if (!humanTargetBox) {
+      humanState = "idle";
+      return;
+    }
+
+    const dx = humanDropPoint.x - human.position.x;
+    const dz = humanDropPoint.z - human.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    // container acompanha o humano
+    humanTargetBox.position.set(
+      human.position.x,
+      human.position.y + humanCarryHeight,
+      human.position.z
+    );
+
+    if (dist > 0.08) {
+      human.position.x += (dx / dist) * humanSpeed;
+      human.position.z += (dz / dist) * humanSpeed;
+    } else {
+      // solta o container na área de entrega
+      humanTargetBox.position.set(
+        humanDropPoint.x,
+        humanDropPoint.y + humanTargetBox.geometry.parameters.height / 2,
+        humanDropPoint.z
+      );
+
+      humanTargetBox.userData.isCarriedByHuman = false;
+      humanTargetBox.userData.isDelivered = true;
+
+      humanTargetBox = null;
+      humanPickupSlot = null;
+      humanState = "returning";
+    }
+  }
+
+  else if (humanState === "returning") {
+    const homeX = pierBase.position.x + 5.5;
+    const homeZ = pierBase.position.z - 3.5;
+
+    const dx = homeX - human.position.x;
+    const dz = homeZ - human.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist > 0.08) {
+      human.position.x += (dx / dist) * humanSpeed;
+      human.position.z += (dz / dist) * humanSpeed;
+    } else {
+      human.position.x = homeX;
+      human.position.z = homeZ;
+      humanState = "idle";
+    }
+  }
+}
 
 /*
     POSIÇÃO INICIAL
@@ -704,27 +897,6 @@ function getPierTargetPosition(level, row, col) {
   );
 }
 
-function updatePierPickupQueue() {
-  for (let i = pierPickupQueue.length - 1; i >= 0; i--) {
-    pierPickupQueue[i].timer--;
-
-    if (pierPickupQueue[i].timer <= 0) {
-      const box = pierPickupQueue[i].box;
-      const slot = box.userData.pierSlot;
-
-      if (slot) {
-        pierSlots[slot.level][slot.row][slot.col] = null;
-        box.userData.pierSlot = null;
-      }
-
-      scene.remove(box);
-      pierPickupQueue.splice(i, 1);
-    }
-  }
-}
-
-const pierPickupQueue = [];
-const PIER_PICKUP_DELAY = 1800;
 
 let activeMove = null;
 
@@ -775,6 +947,8 @@ function unloadContainers() {
     };
   }
 
+  if (!activeMove) return;
+
   const movingBox = activeMove.box;
   const target = activeMove.target;
   const speed = 0.08;
@@ -807,12 +981,9 @@ function unloadContainers() {
 
     if (Math.abs(movingBox.position.y - target.y) < 0.05) {
       movingBox.position.y = target.y;
-      movingBox.userData.isUnloaded = true;
 
-      pierPickupQueue.push({
-        box: movingBox,
-        timer: PIER_PICKUP_DELAY
-      });
+      movingBox.userData.isUnloaded = true;
+      movingBox.userData.isOnPier = true;
 
       currentIndex++;
       activeMove = null;
@@ -885,7 +1056,10 @@ function animate() {
       ship.position.x = startX;
 
       shipContainers.forEach(box => {
+        if (box.userData.isUnloaded) return; // ← NÃO mexe nos que já saíram do barco
+
         box.position.copy(box.userData.originalPosition);
+        box.userData.pierSlot = null;
       });
 
       currentIndex = 0;
@@ -898,7 +1072,7 @@ function animate() {
 
   boto.position.y = 0.3 + Math.sin(time * 2) * 0.1;
 
-  updatePierPickupQueue();
+  updateHuman();
 
   renderer.render(scene, camera);
 }
