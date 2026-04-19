@@ -10,7 +10,7 @@ const scene = new THREE.Scene();
     CÂMERA
 */
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(30, 20, -12);
+camera.position.set(32, 15, -12);
 camera.lookAt(0, 0, 0);
 
 /*
@@ -641,7 +641,7 @@ const pierOffsetZ = -((pierRows - 1) * pierSpacingZ) / 2;
 /*
     POSIÇÃO INICIAL
 */
-ship.position.set(-14, 0.3, -11);
+ship.position.set(-14, -1, -11);
 
 /*
     ESTADOS
