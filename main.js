@@ -410,7 +410,7 @@ const GREEN = 0x3ddc84;
 const shipContainers = [];
 const shipCols = 4;
 const shipRows = 4;
-const shipLevels = 2;
+const shipLevels = 3;
 
 const containerWidth = 2.6;
 const containerHeight = 1.13;
@@ -427,16 +427,22 @@ let created = 0;
 
 const shipLayout = [
   [
-    ["B", "B", "B", "B"],
-    ["B", "B", "G", "G"],
-    ["B", "B", "G", "G"],
-    ["B", "B", "G", "G"]
+    ["B", null, "B", null],
+    ["B", "B", "B", "G"],
+    ["B", "B", "G", "B"],
+    [null, null, null, "B"]
   ],
   [
+    [null, null, "G", null],
     ["B", "B", "G", "G"],
-    ["B", "B", null, "G"],
+    ["G", "G", "G", "G"],
+    [null, null, null, "G"]
+  ],
+  [
     [null, null, null, null],
-    [null, null, "G", null]
+    [null, "B", "G", null],
+    [null, null, "G", null],
+    [null, null, null, null]
   ]
 ];
 
@@ -472,6 +478,9 @@ for (let level = 0; level < shipLevels; level++) {
         baseY + level * spacingY,
         offsetZ + row * spacingZ
       );
+
+      box.userData.isUnloaded = false;
+      box.userData.pierSlot = null;
 
       box.castShadow = true;
       box.receiveShadow = true;
@@ -626,14 +635,24 @@ pierBase.position.set(9, 0.4, 0);
 pier.add(pierBase);
 // marcações de posição 5x2
 const pierCols = 2;
-const pierRows = 6;
+const pierRows = 2;
 const pierLevels = 2;
 
+const pierSlots = [
+  [
+    [null, null],
+    [null, null]
+  ],
+  [
+    [null, null],
+    [null, null]
+  ]
+];
 
 // posição containers no pier pós animação
-const pierSpacingX = 1.7;
+const pierSpacingX = 3;
 const pierSpacingZ = 1.7;
-const pierSpacingY = 1.05;
+const pierSpacingY = 1.4;
 
 const pierOffsetX = -((pierCols - 1) * pierSpacingX) / 2;
 const pierOffsetZ = -((pierRows - 1) * pierSpacingZ) / 2;
@@ -653,59 +672,123 @@ const startX = -12;
 /*
     DESCARGA
 */
+
+function findNextPierSlot() {
+  // 1) sempre tenta completar o primeiro andar
+  for (let row = 0; row < pierRows; row++) {
+    for (let col = 0; col < pierCols; col++) {
+      if (pierSlots[0][row][col] === null) {
+        return { level: 0, row, col };
+      }
+    }
+  }
+
+  // 2) só usa o segundo andar se houver base embaixo
+  for (let row = 0; row < pierRows; row++) {
+    for (let col = 0; col < pierCols; col++) {
+      if (pierSlots[0][row][col] !== null && pierSlots[1][row][col] === null) {
+        return { level: 1, row, col };
+      }
+    }
+  }
+
+  // 3) sem vaga
+  return null;
+}
+
+function getPierTargetPosition(level, row, col) {
+  return new THREE.Vector3(
+    pierBase.position.x + pierOffsetX + col * pierSpacingX,
+    pierBase.position.y + 1.35 + level * pierSpacingY,
+    pierBase.position.z + pierOffsetZ + row * pierSpacingZ
+  );
+}
+
+function updatePierPickupQueue() {
+  for (let i = pierPickupQueue.length - 1; i >= 0; i--) {
+    pierPickupQueue[i].timer--;
+
+    if (pierPickupQueue[i].timer <= 0) {
+      const box = pierPickupQueue[i].box;
+      const slot = box.userData.pierSlot;
+
+      if (slot) {
+        pierSlots[slot.level][slot.row][slot.col] = null;
+        box.userData.pierSlot = null;
+      }
+
+      scene.remove(box);
+      pierPickupQueue.splice(i, 1);
+    }
+  }
+}
+
+const pierPickupQueue = [];
+const PIER_PICKUP_DELAY = 1800;
+
 let activeMove = null;
 
 function unloadContainers() {
   if (currentIndex >= shipContainers.length) return;
 
+  while (
+    currentIndex < shipContainers.length &&
+    shipContainers[currentIndex].userData.isUnloaded
+  ) {
+    currentIndex++;
+  }
+
+  if (currentIndex >= shipContainers.length) return;
+
   const box = shipContainers[currentIndex];
 
-  // cria o movimento uma única vez para o container atual
   if (!activeMove) {
+    const slot = findNextPierSlot();
+
+    // se não houver vaga no pier, para o descarregamento
+    if (!slot) {
+      return;
+    }
+
+    // tira o container do barco e coloca na cena mantendo posição global
     if (box.parent === ship) {
       const worldPos = new THREE.Vector3();
       box.getWorldPosition(worldPos);
-  
+
       ship.remove(box);
       scene.add(box);
       box.position.copy(worldPos);
     }
 
-    const splitPerLevel = 10; // 10 embaixo, 10 em cima
-  
-    const level = currentIndex < splitPerLevel ? 0 : 1;
-    const localIndex = currentIndex < splitPerLevel ? currentIndex : currentIndex - splitPerLevel;
-  
-    const col = Math.floor(localIndex / pierCols);
-    const row = localIndex % pierCols;
-  
-    const target = new THREE.Vector3(
-      pierBase.position.x + pierOffsetX + col * pierSpacingX,
-      pierBase.position.y + 1.35 + level * pierSpacingY,
-      pierBase.position.z + pierOffsetZ + row * pierSpacingZ
-    );
+    const { level, row, col } = slot;
+    const target = getPierTargetPosition(level, row, col);
+
+    // reserva a vaga no pier
+    pierSlots[level][row][col] = box;
+    box.userData.pierSlot = { level, row, col };
 
     activeMove = {
       box,
       target,
       phase: "up",
-      liftHeight: 4.5 // altura a cima de outro container
+      liftHeight: 4.5
     };
   }
 
-  const { box: movingBox, target, phase, liftHeight } = activeMove;
+  const movingBox = activeMove.box;
+  const target = activeMove.target;
   const speed = 0.08;
 
-  if (phase === "up") {
-    movingBox.position.y += (liftHeight - movingBox.position.y) * speed;
+  if (activeMove.phase === "up") {
+    movingBox.position.y += (activeMove.liftHeight - movingBox.position.y) * speed;
 
-    if (Math.abs(movingBox.position.y - liftHeight) < 0.05) {
-      movingBox.position.y = liftHeight;
+    if (Math.abs(movingBox.position.y - activeMove.liftHeight) < 0.05) {
+      movingBox.position.y = activeMove.liftHeight;
       activeMove.phase = "horizontal";
     }
   }
 
-  else if (phase === "horizontal") {
+  else if (activeMove.phase === "horizontal") {
     movingBox.position.x += (target.x - movingBox.position.x) * speed;
     movingBox.position.z += (target.z - movingBox.position.z) * speed;
 
@@ -719,11 +802,18 @@ function unloadContainers() {
     }
   }
 
-  else if (phase === "down") {
+  else if (activeMove.phase === "down") {
     movingBox.position.y += (target.y - movingBox.position.y) * speed;
 
     if (Math.abs(movingBox.position.y - target.y) < 0.05) {
       movingBox.position.y = target.y;
+      movingBox.userData.isUnloaded = true;
+
+      pierPickupQueue.push({
+        box: movingBox,
+        timer: PIER_PICKUP_DELAY
+      });
+
       currentIndex++;
       activeMove = null;
     }
@@ -776,6 +866,8 @@ function animate() {
       ship.position.x -= speed;
 
       shipContainers.forEach(box => {
+        if (box.userData.isUnloaded) return;
+
         if (box.parent !== ship) {
           const worldPos = new THREE.Vector3();
           box.getWorldPosition(worldPos);
@@ -806,6 +898,7 @@ function animate() {
 
   boto.position.y = 0.3 + Math.sin(time * 2) * 0.1;
 
+  updatePierPickupQueue();
 
   renderer.render(scene, camera);
 }
