@@ -21,19 +21,21 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.5;
+renderer.toneMappingExposure = 1.1;
 document.body.appendChild(renderer.domElement);
 
 /*
-    CÉU
+    CÉU BLUE HOUR (igual à imagem)
 */
 const sky = new THREE.Mesh(
-  new THREE.SphereGeometry(100, 32, 32),
+  new THREE.SphereGeometry(100, 64, 64),
   new THREE.ShaderMaterial({
     side: THREE.BackSide,
     uniforms: {
-      topColor: { value: new THREE.Color(0x1e5a99) },
-      bottomColor: { value: new THREE.Color(0x7fb2d6) }
+      topColor: { value: new THREE.Color(0x0b1026) },   // topo escuro (quase noite)
+      midColor: { value: new THREE.Color(0x1f3f75) },   // azul médio
+      horizonColor: { value: new THREE.Color(0xf2d9a0) }, // brilho do horizonte
+      time: { value: 0.0 }
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -43,65 +45,56 @@ const sky = new THREE.Mesh(
       }
     `,
     fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 bottomColor;
-      varying vec3 vWorldPosition;
+  uniform vec3 topColor;
+  uniform vec3 midColor;
+  uniform vec3 horizonColor;
+  varying vec3 vWorldPosition;
 
-      void main() {
-        float h = normalize(vWorldPosition).y;
-        gl_FragColor = vec4(mix(bottomColor, topColor, max(h,0.0)),1.0);
-      }
-    `
+  void main() {
+    vec3 dir = normalize(vWorldPosition);
+    float h = dir.y;
+
+    // gradiente suave estilo "blue hour"
+    vec3 skyColor = mix(midColor, topColor, smoothstep(0.2, 0.9, h));
+    skyColor = mix(horizonColor, skyColor, smoothstep(-0.2, 0.3, h));
+
+    gl_FragColor = vec4(skyColor, 1.0);
+  }
+`
   })
 );
 
 scene.add(sky);
 
 /*
-    LUZ
+    LUZ NOTURNA
 */
-const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+
+// luz principal bem suave (tipo lua)
+const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+sun.position.set(18, 30, 12);
+
+// leve tom azulado pra ficar noturno bonito
+sun.color.set(0xbfdcff);
 sun.position.set(18, 30, 12);
 sun.castShadow = true;
-sun.shadow.mapSize.width = 2048;
-sun.shadow.mapSize.height = 2048;
-sun.shadow.camera.left = -40;
-sun.shadow.camera.right = 40;
-sun.shadow.camera.top = 40;
-sun.shadow.camera.bottom = -40;
 scene.add(sun);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+// luz secundária MUITO fraca
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.1);
 directionalLight.position.set(10, 20, 10);
 scene.add(directionalLight);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+// ambiente escuro
+const ambientLight = new THREE.AmbientLight(0x9bbcff, 0.6);
 scene.add(ambientLight);
 
+const fillLight = new THREE.DirectionalLight(0x6f8cff, 0.8);
+fillLight.position.set(-20, 15, -10);
+scene.add(fillLight);
 /*
-    ÁGUA
+    ÁGUA (RIO NEGRO REALISTA)
 */
-//const waterGeometry = new THREE.PlaneGeometry(180, 180, 220, 220);
-
-// const waterMaterial = new THREE.MeshPhysicalMaterial({
-//   color: 0x1a2323,
-//   metalness: 0.05,
-//   roughness: 0.18,
-//   transmission: 0.0,
-//   transparent: true,
-//   opacity: 0.9,
-//   ior: 1.33,
-//   reflectivity: 0.9,
-//   clearcoat: 1.0,
-//   clearcoatRoughness: 0.12,
-//   sheen: 0.3,
-//   sheenColor: new THREE.Color(0x9fd6ff)
-// });
-
-// const water = new THREE.Mesh(waterGeometry, waterMaterial);
-// water.rotation.x = -Math.PI / 2;
-// water.receiveShadow = true;
-// scene.add(water);
 let water;
 
 const waterGeometry = new THREE.PlaneGeometry( 1000, 1000 );
@@ -119,9 +112,9 @@ water = new Water(
     ),
 
     sunDirection: sun.position.clone().normalize(),
-    sunColor: 0x111111,
+    sunColor: "#848b14",
 
-    waterColor: new THREE.Color(0x1a0f06),
+    waterColor: new THREE.Color('#3a1111'),
 
     distortionScale: 1.0,
     fog: scene.fog !== undefined
@@ -131,6 +124,24 @@ water = new Water(
 water.rotation.x = -Math.PI / 2;
 scene.add(water);
 
+/*
+    FUNDO (mantido)
+*/
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(1000, 1000),
+  new THREE.MeshStandardMaterial({
+    color: 0x0a0a0a
+  })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -2;
+scene.add(floor);
+
+/*
+    ATMOSFERA (IMPORTANTE)
+*/
+scene.background = new THREE.Color(0x2b2b2b);
+scene.fog = new THREE.Fog(0x2b2b2b, 40, 180);
 // BOTO
 
 const boto = new THREE.Group();
@@ -624,6 +635,8 @@ for (let i = 0; i < postCount; i++) {
   lastPost = post;
 }
 
+
+
 /*
     PIER DE RECEBIMENTO 2x2
 */
@@ -651,6 +664,8 @@ const pierSlots = [
     [null, null]
   ]
 ];
+
+
 
 // humano
 
