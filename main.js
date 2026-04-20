@@ -229,15 +229,55 @@ function createRaft() {
   return raft;
 }
 
-const raft = createRaft();
+const raft1 = createRaft();
+raft1.position.set(-6, 0, 2.2);
+raft1.rotation.y = Math.PI;
+scene.add(raft1);
 
-// posição
-raft.position.set(-6, 0, 3);
+const raft2 = createRaft();
+raft2.position.set(-6, 0, 5.6);
+raft2.rotation.y = Math.PI;
+scene.add(raft2);
 
-// rotação: virada pro pier (importante pra dar contexto visual)
-raft.rotation.y = Math.PI;
+const raftDropSlots = [
+  { x: 0, z: 0 }
+];
 
-scene.add(raft);
+const raftData = [
+  {
+    raft: raft1,
+    homePosition: new THREE.Vector3(-6, 0, 2.2),
+    farPosition: new THREE.Vector3(-28, 0, 2.2),
+    state: "idle", // idle, goingFar, returning
+    assignedBox: null
+  },
+  {
+    raft: raft2,
+    homePosition: new THREE.Vector3(-6, 0, 5.6),
+    farPosition: new THREE.Vector3(-28, 0, 5.6),
+    state: "idle",
+    assignedBox: null
+  }
+];
+
+function getAvailableRaftData() {
+  for (const data of raftData) {
+    if (data.state === "idle" && data.assignedBox === null) {
+      return data;
+    }
+  }
+  return null;
+}
+
+function getRaftDropPoint(raftObj) {
+  const slot = raftDropSlots[0];
+
+  return new THREE.Vector3(
+    raftObj.position.x + slot.x,
+    raftObj.position.y + 0.9,
+    raftObj.position.z + slot.z
+  );
+}
 
 /*
     tamanho container
@@ -560,12 +600,14 @@ for (let level = 0; level < shipLevels; level++) {
       box.userData.isOnPier = false;
       box.userData.isCarriedByHuman = false;
       box.userData.isDelivered = false;
+      box.userData.isOnRaft = false;
 
       box.castShadow = true;
       box.receiveShadow = true;
 
       ship.add(box);
       shipContainers.push(box);
+      box.userData.containerId = shipContainers.length;
       box.userData.originalPosition = box.position.clone();
       box.userData.shipLevel = level;
       box.userData.shipRow = row;
@@ -578,6 +620,15 @@ for (let level = 0; level < shipLevels; level++) {
 if (shipContainers.length !== TOTAL_CONTAINERS) {
   console.warn(`A matriz do barco tem ${shipContainers.length} containers, mas o TOTAL_CONTAINERS está em ${TOTAL_CONTAINERS}.`);
 }
+
+const unloadSequence = [
+  22, 1, 16, 12, 21,
+  13, 20, 24, 6, 17,
+  23, 18, 15, 19, 14,
+  9, 3, 11, 2, 7, 10, 4, 8, 5
+];
+
+let unloadSequenceIndex = 0;
 
 if (blueCount !== 12 || greenCount !== 12) {
   console.warn(`Quantidade de cores inválida: azul=${blueCount}, verde=${greenCount}. O esperado é 12 de cada.`);
@@ -808,6 +859,7 @@ function findNextBoxForHuman() {
 let humanState = "idle"; // idle, goingToPickup, carryingToDrop, returning
 let humanTargetBox = null;
 let humanPickupSlot = null;
+let humanTargetRaftData = null;
 
 const humanSpeed = 0.05;
 const humanCarryHeight = 1.6;
@@ -823,25 +875,20 @@ const pierSpacingY = 1.4;
 const pierOffsetX = -((pierCols - 1) * pierSpacingX) / 2;
 const pierOffsetZ = -((pierRows - 1) * pierSpacingZ) / 2;
 
-const humanDropPoint = new THREE.Vector3(
-  pierBase.position.x + 6.0,
-  pierBase.position.y + 1.0,
-  pierBase.position.z + 4.0
-);
-
-
 // animacao humano
 function updateHuman() {
   if (humanState === "idle") {
     const next = findNextBoxForHuman();
+    const availableRaftData = getAvailableRaftData();
 
-    if (next) {
+    if (next && availableRaftData) {
       humanTargetBox = next.box;
       humanPickupSlot = {
         level: next.level,
         row: next.row,
         col: next.col
       };
+      humanTargetRaftData = availableRaftData;
       humanState = "goingToPickup";
     }
   }
@@ -875,13 +922,15 @@ function updateHuman() {
   }
 
   else if (humanState === "carryingToDrop") {
-    if (!humanTargetBox) {
+    if (!humanTargetBox || !humanTargetRaftData) {
       humanState = "idle";
       return;
     }
 
-    const dx = humanDropPoint.x - human.position.x;
-    const dz = humanDropPoint.z - human.position.z;
+    const raftDropPoint = getRaftDropPoint(humanTargetRaftData.raft);
+
+    const dx = raftDropPoint.x - human.position.x;
+    const dz = raftDropPoint.z - human.position.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
 
     // container acompanha o humano
@@ -895,25 +944,29 @@ function updateHuman() {
       human.position.x += (dx / dist) * humanSpeed;
       human.position.z += (dz / dist) * humanSpeed;
     } else {
-      // solta o container na área de entrega
+      // solta o container em cima da jangada escolhida
       humanTargetBox.position.set(
-        humanDropPoint.x,
-        humanDropPoint.y + humanTargetBox.geometry.parameters.height / 2,
-        humanDropPoint.z
+        raftDropPoint.x,
+        raftDropPoint.y + humanTargetBox.geometry.parameters.height / 2,
+        raftDropPoint.z
       );
 
       humanTargetBox.userData.isCarriedByHuman = false;
       humanTargetBox.userData.isDelivered = true;
+      humanTargetBox.userData.isOnRaft = true;
+
+      humanTargetRaftData.assignedBox = humanTargetBox;
+      humanTargetRaftData.state = "goingFar";
 
       humanTargetBox = null;
       humanPickupSlot = null;
+      humanTargetRaftData = null;
       humanState = "returning";
     }
   }
-
   else if (humanState === "returning") {
-    const homeX = pierBase.position.x + 5.5;
-    const homeZ = pierBase.position.z - 3.5;
+    const homeX = pierBase.position.x - 8;
+    const homeZ = pierBase.position.z - 2;
 
     const dx = homeX - human.position.x;
     const dz = homeZ - human.position.z;
@@ -926,6 +979,57 @@ function updateHuman() {
       human.position.x = homeX;
       human.position.z = homeZ;
       humanState = "idle";
+    }
+  }
+}
+
+function updateRafts() {
+  const raftSpeed = 0.1;
+
+  for (const data of raftData) {
+    if (data.state === "goingFar") {
+      const dx = data.farPosition.x - data.raft.position.x;
+      const dz = data.farPosition.z - data.raft.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (data.assignedBox) {
+        data.assignedBox.position.set(
+          data.raft.position.x,
+          data.raft.position.y + data.assignedBox.geometry.parameters.height / 2 + 0.35,
+          data.raft.position.z
+        );
+      }
+
+      if (dist > 0.08) {
+        data.raft.position.x += (dx / dist) * raftSpeed;
+        data.raft.position.z += (dz / dist) * raftSpeed;
+      } else {
+        data.raft.position.x = data.farPosition.x;
+        data.raft.position.z = data.farPosition.z;
+
+        // "deixa o container" no destino distante
+        if (data.assignedBox) {
+          scene.remove(data.assignedBox);
+          data.assignedBox = null;
+        }
+
+        data.state = "returning";
+      }
+    }
+
+    else if (data.state === "returning") {
+      const dx = data.homePosition.x - data.raft.position.x;
+      const dz = data.homePosition.z - data.raft.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist > 0.08) {
+        data.raft.position.x += (dx / dist) * raftSpeed;
+        data.raft.position.z += (dz / dist) * raftSpeed;
+      } else {
+        data.raft.position.x = data.homePosition.x;
+        data.raft.position.z = data.homePosition.z;
+        data.state = "idle";
+      }
     }
   }
 }
@@ -980,19 +1084,56 @@ function getPierTargetPosition(level, row, col) {
 
 let activeMove = null;
 
-function unloadContainers() {
-  if (currentIndex >= shipContainers.length) return;
+function isContainerAccessible(box) {
+  // se houver algum container acima, na mesma linha/coluna, ainda não descarregado,
+  // este container não pode sair
+  return !shipContainers.some(other =>
+    !other.userData.isUnloaded &&
+    other.userData.shipRow === box.userData.shipRow &&
+    other.userData.shipCol === box.userData.shipCol &&
+    other.userData.shipLevel > box.userData.shipLevel
+  );
+}
 
-  while (
-    currentIndex < shipContainers.length &&
-    shipContainers[currentIndex].userData.isUnloaded
-  ) {
-    currentIndex++;
+function getNextContainerFromSequence() {
+  while (unloadSequenceIndex < unloadSequence.length) {
+    const wantedId = unloadSequence[unloadSequenceIndex];
+
+    const candidate = shipContainers.find(
+      box => box.userData.containerId === wantedId
+    );
+
+    // se não encontrou, pula
+    if (!candidate) {
+      unloadSequenceIndex++;
+      continue;
+    }
+
+    // se já saiu, pula
+    if (candidate.userData.isUnloaded) {
+      unloadSequenceIndex++;
+      continue;
+    }
+
+    // se não está acessível, espera
+    if (!isContainerAccessible(candidate)) {
+      return null;
+    }
+
+    return candidate;
   }
 
-  if (currentIndex >= shipContainers.length) return;
+  return null;
+}
 
-  const box = shipContainers[currentIndex];
+function isUnloadSequenceFinished() {
+  return unloadSequenceIndex >= unloadSequence.length;
+}
+
+function unloadContainers() {
+  const box = getNextContainerFromSequence();
+
+  if (!box) return;
 
   if (!activeMove) {
     const slot = findNextPierSlot();
@@ -1065,7 +1206,7 @@ function unloadContainers() {
       movingBox.userData.isUnloaded = true;
       movingBox.userData.isOnPier = true;
 
-      currentIndex++;
+      unloadSequenceIndex++;
       activeMove = null;
     }
   }
@@ -1107,7 +1248,7 @@ function animate() {
   else if (state === "unloading") {
     unloadContainers();
 
-    if (currentIndex >= shipContainers.length) {
+    if (isUnloadSequenceFinished()) {
       state = "returning";
     }
   }
@@ -1143,6 +1284,7 @@ function animate() {
       });
 
       currentIndex = 0;
+      unloadSequenceIndex = 0;
       state = "moving";
     }
   }
@@ -1153,6 +1295,7 @@ function animate() {
   boto.position.y = 0.3 + Math.sin(time * 2) * 0.1;
 
   updateHuman();
+  updateRafts();
 
   renderer.render(scene, camera);
 }
