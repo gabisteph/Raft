@@ -1,6 +1,8 @@
-import * as THREE from 'three';
-import { Water } from 'three/addons/objects/Water.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
 
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/GLTFLoader.js';
+
+import { Water } from 'three/addons/objects/Water.js';
 /*
     CENA
 */
@@ -10,8 +12,9 @@ const scene = new THREE.Scene();
     CÂMERA
 */
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(32, 15, -12);
+camera.position.set(28, 15, -10);
 camera.lookAt(0, 0, 0);
+
 
 /*
     RENDER
@@ -142,37 +145,46 @@ scene.add(floor);
 */
 scene.background = new THREE.Color(0x2b2b2b);
 scene.fog = new THREE.Fog(0x2b2b2b, 40, 180);
+
+
 // BOTO
 
-const boto = new THREE.Group();
+function createBotoGLTF(url) {
+  const group = new THREE.Group();
+  const loader = new GLTFLoader();
 
-// corpo
-const body = new THREE.Mesh(
-  new THREE.SphereGeometry(0.6, 16, 16),
-  new THREE.MeshStandardMaterial({ color: 0xff6fa5 })
-);
-body.scale.set(2, 1, 1);
-boto.add(body);
+  loader.load(url, (gltf) => {
+    const model = gltf.scene;
 
-// cabeça
-const head = new THREE.Mesh(
-  new THREE.SphereGeometry(0.4, 16, 16),
-  new THREE.MeshStandardMaterial({ color: 0xff85b5 })
-);
-head.position.set(1.4, 0, 0);
-boto.add(head);
+    // escala (ajusta se ficar gigante ou minúsculo)
+    model.scale.set(0.02, 0.02, 0.02);
+    model.rotation.y = -Math.PI / 2;
 
-// nadadeira
-const fin = new THREE.Mesh(
-  new THREE.ConeGeometry(0.2, 0.6, 8),
-  new THREE.MeshStandardMaterial({ color: 0xff6fa5 })
-);
-fin.rotation.z = Math.PI;
-fin.position.set(-0.5, 0.5, 0);
-boto.add(fin);
+    // deixa rosa 🩷
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.material = child.material.clone();
+        child.material.color.set(0xff6fa5);
+      }
+    });
 
-boto.position.set(0, 0.3, 5);
-scene.add(boto);
+    group.add(model);
+  });
+
+  return group;
+}
+
+const boto1 = createBotoGLTF('models/scene.gltf');
+boto1.position.set(0, 0.3, 5);
+scene.add(boto1);
+
+const boto2 = createBotoGLTF('models/scene.gltf');
+boto2.position.set(-5, 0.3, 8);
+scene.add(boto2);
+
+/*
+    RAFTS
+*/
 
 function createRaft() {
   const raft = new THREE.Group();
@@ -239,6 +251,26 @@ raft2.position.set(-6, 0, 5.6);
 raft2.rotation.y = Math.PI;
 scene.add(raft2);
 
+function placeBotoInFrontOfRaft(boto, raft, sideOffset = 0) {
+  // pega a direção real da jangada (respeitando rotação)
+  const direction = new THREE.Vector3(1, 0, 0)
+    .applyQuaternion(raft.quaternion)
+    .normalize();
+
+  const frontDistance = 5;
+
+  const side = new THREE.Vector3(-direction.z, 0, direction.x);
+
+  const startPos = raft.position.clone()
+    .add(direction.clone().multiplyScalar(frontDistance))
+    .add(side.multiplyScalar(sideOffset));
+
+  boto.position.copy(startPos);
+}
+
+placeBotoInFrontOfRaft(boto1, raft1, -1.6);
+placeBotoInFrontOfRaft(boto2, raft2, 0.8);
+
 const raftDropSlots = [
   { x: 0, z: 0 }
 ];
@@ -278,6 +310,7 @@ function getRaftDropPoint(raftObj) {
     raftObj.position.z + slot.z
   );
 }
+
 
 /*
     tamanho container
@@ -781,52 +814,137 @@ const pierSlots = [
   ]
 ];
 
-
-
 // humano
 
+// humano estilizado estilo "boto humano"
 const human = new THREE.Group();
 scene.add(human);
 
-// corpo
-const humanBody = new THREE.Mesh(
-  new THREE.BoxGeometry(0.5, 1.2, 0.35),
-  new THREE.MeshStandardMaterial({ color: 0x2f4f4f })
+// material principal (roupa branca)
+const whiteMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff,
+  roughness: 0.6
+});
+
+// detalhes rosa
+const pinkMat = new THREE.MeshStandardMaterial({
+  color: 0xff6fa5,
+  roughness: 0.6
+});
+
+// pele
+const skinMat = new THREE.MeshStandardMaterial({
+  color: 0xf1c27d
+});
+
+/*
+  CORPO (terno branco)
+*/
+const body = new THREE.Mesh(
+  new THREE.BoxGeometry(0.6, 1.2, 0.35),
+  whiteMat
 );
-humanBody.position.y = 0.9;
-human.add(humanBody);
+body.position.y = 0.9;
+human.add(body);
 
-// cabeça
-const humanHead = new THREE.Mesh(
-  new THREE.SphereGeometry(0.22, 16, 16),
-  new THREE.MeshStandardMaterial({ color: 0xf1c27d })
+/*
+  CABEÇA
+*/
+const head = new THREE.Mesh(
+  new THREE.SphereGeometry(0.25, 16, 16),
+  skinMat
 );
-humanHead.position.y = 1.75;
-human.add(humanHead);
+head.position.y = 1.8;
+human.add(head);
 
-// pernas
-const legGeo = new THREE.BoxGeometry(0.16, 0.8, 0.16);
-const legMat = new THREE.MeshStandardMaterial({ color: 0x1f1f1f });
+/*
+  PERNAS (brancas)
+*/
+const legGeo = new THREE.BoxGeometry(0.18, 0.9, 0.18);
 
-const legLeft = new THREE.Mesh(legGeo, legMat);
-legLeft.position.set(-0.12, 0.35, 0);
+const legLeft = new THREE.Mesh(legGeo, whiteMat);
+legLeft.position.set(-0.14, 0.4, 0);
 human.add(legLeft);
 
-const legRight = new THREE.Mesh(legGeo, legMat);
-legRight.position.set(0.12, 0.35, 0);
+const legRight = new THREE.Mesh(legGeo, whiteMat);
+legRight.position.set(0.14, 0.4, 0);
 human.add(legRight);
 
-// braços
-const armGeo = new THREE.BoxGeometry(0.14, 0.75, 0.14);
-const armMat = new THREE.MeshStandardMaterial({ color: 0xf1c27d });
+/*
+  BRAÇOS
+*/
+const armGeo = new THREE.BoxGeometry(0.16, 0.8, 0.16);
 
-const armLeft = new THREE.Mesh(armGeo, armMat);
-armLeft.position.set(-0.38, 1.05, 0);
+const armLeft = new THREE.Mesh(armGeo, whiteMat);
+armLeft.position.set(-0.45, 1.05, 0);
 human.add(armLeft);
 
-const armRight = new THREE.Mesh(armGeo, armMat);
-armRight.position.set(0.38, 1.05, 0);
+const armRight = new THREE.Mesh(armGeo, whiteMat);
+armRight.position.set(0.45, 1.05, 0);
 human.add(armRight);
+
+/*
+  CHAPÉU (ESSENCIAL 🔥)
+*/
+// aba
+const hatBrim = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.35, 0.35, 0.05, 20),
+  whiteMat
+);
+hatBrim.position.y = 2.05;
+human.add(hatBrim);
+
+// topo
+const hatTop = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.22, 0.25, 0.3, 20),
+  whiteMat
+);
+hatTop.position.y = 2.2;
+human.add(hatTop);
+
+// faixa rosa do chapéu
+const hatBand = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.255, 0.255, 0.08, 20),
+  pinkMat
+);
+hatBand.position.y = 2.15;
+human.add(hatBand);
+
+/*
+  DETALHE ROSA (lenço no peito)
+*/
+const chestDetail = new THREE.Mesh(
+  new THREE.BoxGeometry(0.15, 0.15, 0.02),
+  pinkMat
+);
+chestDetail.position.set(0.15, 1.1, 0.18);
+human.add(chestDetail);
+
+function isCollidingWithBoxes(nextX, nextZ) {
+  if (humanState === "goingToPickup" || humanState === "carryingToDrop") {
+    return false;
+  }
+
+  const humanRadius = 0.35;
+
+  for (const box of shipContainers) {
+    if (!box.userData.isOnPier) continue;
+    if (box.userData.isCarriedByHuman) continue;
+
+    const dx = nextX - box.position.x;
+    const dz = nextZ - box.position.z;
+
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    const minDist = humanRadius + 0.6;
+
+    if (dist < minDist) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 // logica de retirada para o humano
 function findNextBoxForHuman() {
@@ -854,6 +972,7 @@ function findNextBoxForHuman() {
 
   return null;
 }
+human.scale.set(1.8, 1.8, 1.8);
 
 // estados do humano
 let humanState = "idle"; // idle, goingToPickup, carryingToDrop, returning
@@ -862,7 +981,7 @@ let humanPickupSlot = null;
 let humanTargetRaftData = null;
 
 const humanSpeed = 0.05;
-const humanCarryHeight = 1.6;
+const humanCarryHeight = 2.2;
 
 // posição inicial do humano
 human.position.set(pierBase.position.x + 5.5, pierBase.position.y + 0.4, pierBase.position.z - 3.5);
@@ -905,8 +1024,17 @@ function updateHuman() {
     const dist = Math.sqrt(dx * dx + dz * dz);
 
     if (dist > 0.08) {
-      human.position.x += (dx / dist) * humanSpeed;
-      human.position.z += (dz / dist) * humanSpeed;
+      const nextX = human.position.x + (dx / dist) * humanSpeed;
+      const nextZ = human.position.z + (dz / dist) * humanSpeed;
+
+      // move separado → evita travar
+      if (!isCollidingWithBoxes(nextX, human.position.z)) {
+        human.position.x = nextX;
+      }
+
+      if (!isCollidingWithBoxes(human.position.x, nextZ)) {
+        human.position.z = nextZ;
+      }
     } else {
       // libera a vaga no instante em que o humano pega
       if (humanPickupSlot) {
@@ -934,10 +1062,19 @@ function updateHuman() {
     const dist = Math.sqrt(dx * dx + dz * dz);
 
     // container acompanha o humano
+    const carryOffset = containerWidth / 2 + 0.5; // distância à frente do corpo
+
+    const dir = new THREE.Vector3(
+      raftDropPoint.x - human.position.x,
+      0,
+      raftDropPoint.z - human.position.z
+    ).normalize();
+    
+
     humanTargetBox.position.set(
-      human.position.x,
+      human.position.x + dir.x * carryOffset,
       human.position.y + humanCarryHeight,
-      human.position.z
+      human.position.z + dir.z * carryOffset
     );
 
     if (dist > 0.08) {
@@ -956,7 +1093,9 @@ function updateHuman() {
       humanTargetBox.userData.isOnRaft = true;
 
       humanTargetRaftData.assignedBox = humanTargetBox;
-      humanTargetRaftData.state = "goingFar";
+
+      // 🔒 marca que está esperando o humano sair
+      humanTargetRaftData.waitingForHuman = true;
 
       humanTargetBox = null;
       humanPickupSlot = null;
@@ -979,6 +1118,14 @@ function updateHuman() {
       human.position.x = homeX;
       human.position.z = homeZ;
       humanState = "idle";
+
+      // 🔥 libera as jangadas que estavam esperando
+      for (const data of raftData) {
+        if (data.waitingForHuman && data.assignedBox) {
+          data.state = "goingFar";
+          data.waitingForHuman = false;
+        }
+      }
     }
   }
 }
@@ -1219,6 +1366,9 @@ const botoArea = {
   radiusZ: 4
 };
 
+raft1.userData.prevPosition = raft1.position.clone();
+raft2.userData.prevPosition = raft2.position.clone();
+
 /*
     ANIMAÇÃO
 */
@@ -1226,6 +1376,10 @@ function animate() {
   requestAnimationFrame(animate);
 
   const time = Date.now() * 0.0005;
+  if (humanState === "carryingToDrop") {
+    armLeft.rotation.x = -1.2;
+    armRight.rotation.x = -1.2;
+  }
   
 
   // updateWater(time)
@@ -1289,16 +1443,60 @@ function animate() {
     }
   }
   water.material.uniforms[ 'time' ].value += 1.0 / 60.0;
-  boto.position.x = botoArea.centerX + Math.sin(time * 0.8) * botoArea.radiusX;
-  boto.position.z = botoArea.centerZ + Math.cos(time * 0.5) * botoArea.radiusZ;
+  const botoRaftPairs = [
+  { boto: boto1, raft: raft1, sideOffset: -0.8 },
+  { boto: boto2, raft: raft2, sideOffset: 0.8 }
+];
 
-  boto.position.y = 0.3 + Math.sin(time * 2) * 0.1;
+for (const pair of botoRaftPairs) {
+  const { boto, raft, sideOffset } = pair;
 
-  updateHuman();
-  updateRafts();
+  const direction = new THREE.Vector3()
+    .subVectors(raft.position, raft.userData.prevPosition);
 
-  renderer.render(scene, camera);
+  if (direction.length() < 0.001) continue;
+
+  direction.normalize();
+
+  const side = new THREE.Vector3(-direction.z, 0, direction.x);
+
+  const frontDistance = 4.5;
+
+  const target = raft.position.clone()
+    .add(direction.clone().multiplyScalar(frontDistance))
+    .add(side.multiplyScalar(sideOffset));
+
+  // movimento suave
+  boto.position.lerp(target, 0.08);
+
+  // =========================
+  // 🔥 DETECÇÃO DE "COLISÃO"
+  // =========================
+  const distanceToRaft = boto.position.distanceTo(raft.position);
+
+  const isUnderRaft = distanceToRaft < 3.5; // ajusta esse valor
+
+  if (isUnderRaft) {
+    // mergulha
+    boto.position.y = THREE.MathUtils.lerp(boto.position.y, -0.8, 0.1);
+  } else {
+    // volta pra superfície com ondinha
+    const floatY = 0.3 + Math.sin(Date.now() * 0.003) * 0.08;
+    boto.position.y = THREE.MathUtils.lerp(boto.position.y, floatY, 0.1);
+  }
+
+  // rotação
+  boto.rotation.y = Math.atan2(-direction.z, direction.x);
 }
+
+  raft1.userData.prevPosition.copy(raft1.position);
+  raft2.userData.prevPosition.copy(raft2.position);
+
+    updateHuman();
+    updateRafts();
+
+    renderer.render(scene, camera);
+  }
 
 animate();
 
