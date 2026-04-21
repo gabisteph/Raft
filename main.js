@@ -140,12 +140,79 @@ floor.rotation.x = -Math.PI / 2;
 floor.position.y = -2;
 scene.add(floor);
 
+
+
 /*
     ATMOSFERA (IMPORTANTE)
 */
 scene.background = new THREE.Color(0x2b2b2b);
-scene.fog = new THREE.Fog(0x2b2b2b, 40, 180);
+scene.fog = new THREE.Fog(0x2b2b2b, 120, 320);
 
+function createTree() {
+  const tree = new THREE.Group();
+
+  // TRONCO
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.4, 4, 8),
+    new THREE.MeshStandardMaterial({ color: 0x5a3e2b })
+  );
+  trunk.position.y = 2;
+  trunk.castShadow = true;
+  tree.add(trunk);
+
+  // COPA (folhas)
+  const leaves = new THREE.Mesh(
+    new THREE.SphereGeometry(2.5, 16, 16),
+    new THREE.MeshStandardMaterial({ color: 0x1f7a3a })
+  );
+  leaves.position.y = 5;
+  leaves.castShadow = true;
+  tree.add(leaves);
+
+  return tree;
+}
+
+const treeCount = 30;
+const spacingTree = 4;
+
+const xLine = 80;
+const startZ = -80;
+
+// 🔹 LINHA ORIGINAL (mantida)
+for (let i = 0; i < treeCount; i++) {
+  const tree = createTree();
+
+  tree.position.set(
+    xLine,
+    0,
+    startZ + i * spacingTree
+  );
+
+  const scale = 0.9 + Math.random() * 0.3;
+  tree.scale.set(scale, scale, scale);
+
+  scene.add(tree);
+}
+
+// 🔹 FLORESTA (camadas extras)
+const forestDepth = 3; // quantas camadas pra trás
+
+for (let layer = 1; layer <= forestDepth; layer++) {
+  for (let i = 0; i < treeCount; i++) {
+    const tree = createTree();
+
+    tree.position.set(
+      xLine + layer * 3 + Math.random() * 2, // profundidade
+      0,
+      startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
+    );
+
+    const scale = 0.7 + Math.random() * 0.5;
+    tree.scale.set(scale, scale, scale);
+
+    scene.add(tree);
+  }
+}
 
 // BOTO
 
@@ -1368,6 +1435,8 @@ const botoArea = {
 
 raft1.userData.prevPosition = raft1.position.clone();
 raft2.userData.prevPosition = raft2.position.clone();
+
+
 
 /*
     ANIMAÇÃO
