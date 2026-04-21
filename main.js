@@ -12,7 +12,7 @@ const scene = new THREE.Scene();
     CÂMERA
 */
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(28, 15, -10);
+camera.position.set(-25, 15, -10);
 camera.lookAt(0, 0, 0);
 
 
@@ -1400,11 +1400,15 @@ function animate() {
   }
 
   else if (state === "unloading") {
-    unloadContainers();
+  unloadContainers();
 
     if (isUnloadSequenceFinished()) {
-      state = "returning";
+      state = "stopped";
     }
+  }
+
+  if (state === "stopped") {
+    ship.rotation.z = Math.sin(Date.now() * 0.001) * 0.01;
   }
 
   else if (state === "returning") {
