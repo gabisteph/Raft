@@ -515,99 +515,6 @@ function createBarge() {
   rimBack.position.set(-boatLength / 2, hullHeight + floorThickness + rimHeight / 2, 0);
   boat.add(rimBack);
 
-  // divisórias internas 4x4 mais juntas e retas
-    // piso superior com 4 linhas de containers e espacamento entre elas
-  const rows = 4;                 // 4 linhas
-  const colsPerRow = 4;           // 4 containers por linha
-
-  const containerLen = 1.1;       // comprimento do container
-  const containerWid = 0.8;       // largura do container
-
-  const gapBetweenRows = 0.28;    // ESPACAMENTO X entre as linhas
-  const sideMarginZ = 0.22;       // margem lateral
-  const frontBackMarginX = 0.35;  // margem nas pontas
-
-  const usableLength = colsPerRow * containerLen + frontBackMarginX * 2;
-  const usableWidth = rows * containerWid + (rows - 1) * gapBetweenRows + sideMarginZ * 2;
-
-  const dividerHeight = 0.22;
-  const dividerThickness = 0.12;
-  const dividerY = deckHeight + 0.11;
-
-  // moldura interna
-  const frameLong1 = new THREE.Mesh(
-    new THREE.BoxGeometry(usableLength, dividerHeight, 0.08),
-    hullMaterial
-  );
-  frameLong1.position.set(0, dividerY, usableWidth / 2);
-  boat.add(frameLong1);
-
-  const frameLong2 = frameLong1.clone();
-  frameLong2.position.z = -usableWidth / 2;
-  boat.add(frameLong2);
-
-  const frameShort1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, dividerHeight, usableWidth),
-    hullMaterial
-  );
-  frameShort1.position.set(usableLength / 2, dividerY, 0);
-  boat.add(frameShort1);
-
-  const frameShort2 = frameShort1.clone();
-  frameShort2.position.x = -usableLength / 2;
-  boat.add(frameShort2);
-
-  // linhas separadoras ENTRE as 4 fileiras
-  for (let i = 1; i < rows; i++) {
-    const z = -usableWidth / 2 + sideMarginZ + i * containerWid + (i - 0.5) * gapBetweenRows;
-
-    const divider = new THREE.Mesh(
-      new THREE.BoxGeometry(usableLength, dividerHeight, dividerThickness),
-      hullMaterial
-    );
-    divider.position.set(0, dividerY, z);
-    divider.castShadow = true;
-    divider.receiveShadow = true;
-    boat.add(divider);
-  }
-
-    // separações no comprimento para repetir 4 vezes
-  for (let i = 1; i < colsPerRow; i++) {
-    const x = -usableLength / 2 + frontBackMarginX + i * containerLen;
-
-    const dividerX = new THREE.Mesh(
-      new THREE.BoxGeometry(dividerThickness, dividerHeight, usableWidth),
-      hullMaterial
-    );
-    dividerX.position.set(x, dividerY, 0);
-    dividerX.castShadow = true;
-    dividerX.receiveShadow = true;
-    boat.add(dividerX);
-  }
-
-  // contorno interno
-  const innerRimLong = new THREE.Mesh(
-    new THREE.BoxGeometry(usableLength, 0.07, 0.08),
-    darkMaterial
-  );
-  innerRimLong.position.set(0, dividerY + 0.08, usableWidth / 2);
-  boat.add(innerRimLong);
-
-  const innerRimLong2 = innerRimLong.clone();
-  innerRimLong2.position.z = -usableWidth / 2;
-  boat.add(innerRimLong2);
-
-  const innerRimShort = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.07, usableWidth),
-    darkMaterial
-  );
-  innerRimShort.position.set(usableLength / 2, dividerY + 0.08, 0);
-  boat.add(innerRimShort);
-
-  const innerRimShort2 = innerRimShort.clone();
-  innerRimShort2.position.x = -usableLength / 2;
-  boat.add(innerRimShort2);
-
   return boat;
 }
 
@@ -1374,11 +1281,14 @@ function unloadContainers() {
     pierSlots[level][row][col] = box;
     box.userData.pierSlot = { level, row, col };
 
+    const safeCorridorZ = pierBase.position.z - 4.5;
+
     activeMove = {
       box,
       target,
       phase: "up",
-      liftHeight: 4.5
+      liftHeight: 6,
+      safeCorridorZ
     };
   }
 
@@ -1386,26 +1296,39 @@ function unloadContainers() {
 
   const movingBox = activeMove.box;
   const target = activeMove.target;
-  const speed = 0.08;
+  const speed = 0.1;
 
   if (activeMove.phase === "up") {
     movingBox.position.y += (activeMove.liftHeight - movingBox.position.y) * speed;
 
     if (Math.abs(movingBox.position.y - activeMove.liftHeight) < 0.05) {
       movingBox.position.y = activeMove.liftHeight;
-      activeMove.phase = "horizontal";
+      activeMove.phase = "toCorridor";
     }
   }
 
-  else if (activeMove.phase === "horizontal") {
+  else if (activeMove.phase === "toCorridor") {
+    movingBox.position.z += (activeMove.safeCorridorZ - movingBox.position.z) * speed;
+
+    if (Math.abs(movingBox.position.z - activeMove.safeCorridorZ) < 0.05) {
+      movingBox.position.z = activeMove.safeCorridorZ;
+      activeMove.phase = "moveX";
+    }
+  }
+
+  else if (activeMove.phase === "moveX") {
     movingBox.position.x += (target.x - movingBox.position.x) * speed;
+
+    if (Math.abs(movingBox.position.x - target.x) < 0.05) {
+      movingBox.position.x = target.x;
+      activeMove.phase = "moveZ";
+    }
+  }
+
+  else if (activeMove.phase === "moveZ") {
     movingBox.position.z += (target.z - movingBox.position.z) * speed;
 
-    if (
-      Math.abs(movingBox.position.x - target.x) < 0.05 &&
-      Math.abs(movingBox.position.z - target.z) < 0.05
-    ) {
-      movingBox.position.x = target.x;
+    if (Math.abs(movingBox.position.z - target.z) < 0.05) {
       movingBox.position.z = target.z;
       activeMove.phase = "down";
     }
