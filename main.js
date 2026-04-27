@@ -1,8 +1,14 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
+import { sky, sun, directionalLight, ambientLight, fillLight } from './modules/environment.js';
+import { water, floor } from './modules/water.js';
+import { createTree } from './modules/forest.js';
+import { boto1, boto2 } from './modules/botos.js';
+import { raft1, raft2 } from './modules/rafts.js';
+import { createHuman } from './modules/human.js';
+import { createShipContainers } from './modules/container.js';
+import { createShip } from './modules/ship.js';
 
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/GLTFLoader.js';
 
-import { Water } from 'three/addons/objects/Water.js';
 /*
     CENA
 */
@@ -11,8 +17,16 @@ const scene = new THREE.Scene();
 /*
     CÂMERA
 */
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(-25, 15, -10);
+
+
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
+camera.position.set(-18, 12, -7);
 camera.lookAt(0, 0, 0);
 
 
@@ -28,295 +42,92 @@ renderer.toneMappingExposure = 1.1;
 document.body.appendChild(renderer.domElement);
 
 /*
-    CÉU
+    CÉU // modules/environment.js 
 */
-const sky = new THREE.Mesh(
-  new THREE.SphereGeometry(100, 64, 64),
-  new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    uniforms: {
-      topColor: { value: new THREE.Color(0x0b1026) },   // topo escuro (quase noite)
-      midColor: { value: new THREE.Color(0x1f3f75) },   // azul médio
-      horizonColor: { value: new THREE.Color(0xf2d9a0) }, // brilho do horizonte
-      time: { value: 0.0 }
-    },
-    vertexShader: `
-      varying vec3 vWorldPosition;
-      void main() {
-        vWorldPosition = (modelMatrix * vec4(position,1.0)).xyz;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
-      }
-    `,
-    fragmentShader: `
-  uniform vec3 topColor;
-  uniform vec3 midColor;
-  uniform vec3 horizonColor;
-  varying vec3 vWorldPosition;
-
-  void main() {
-    vec3 dir = normalize(vWorldPosition);
-    float h = dir.y;
-
-    // gradiente suave estilo "blue hour"
-    vec3 skyColor = mix(midColor, topColor, smoothstep(0.2, 0.9, h));
-    skyColor = mix(horizonColor, skyColor, smoothstep(-0.2, 0.3, h));
-
-    gl_FragColor = vec4(skyColor, 1.0);
-  }
-`
-  })
-);
 
 scene.add(sky);
 
 /*
-    LUZ NOTURNA
+    LUZ NOTURNA // modules/environment.js
 */
 
-// luz principal bem suave (tipo lua)
-const sun = new THREE.DirectionalLight(0xffffff, 1.8);
-sun.position.set(18, 30, 12);
-
-// leve tom azulado pra ficar noturno bonito
-sun.color.set(0xbfdcff);
-sun.position.set(18, 30, 12);
-sun.castShadow = true;
 scene.add(sun);
-
-// luz secundária MUITO fraca
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.1);
-directionalLight.position.set(10, 20, 10);
 scene.add(directionalLight);
-
-// ambiente escuro
-const ambientLight = new THREE.AmbientLight(0x9bbcff, 0.6);
 scene.add(ambientLight);
-
-const fillLight = new THREE.DirectionalLight(0x6f8cff, 0.8);
-fillLight.position.set(-20, 15, -10);
 scene.add(fillLight);
+
 /*
     ÁGUA (RIO NEGRO REALISTA)
 */
-let water;
 
-const waterGeometry = new THREE.PlaneGeometry( 1000, 1000 );
-
-water = new Water(
-  waterGeometry,
-  {
-    textureWidth: 512,
-    textureHeight: 512,
-    waterNormals: new THREE.TextureLoader().load(
-      'https://threejs.org/examples/textures/waternormals.jpg',
-      function (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      }
-    ),
-
-    sunDirection: sun.position.clone().normalize(),
-    sunColor: "#848b14",
-
-    waterColor: new THREE.Color('#3a1111'),
-
-    distortionScale: 1.0,
-    fog: scene.fog !== undefined
-  }
-);
-
-water.rotation.x = -Math.PI / 2;
 scene.add(water);
 
 /*
-    FUNDO (mantido)
+    fundo do chão
 */
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(1000, 1000),
-  new THREE.MeshStandardMaterial({
-    color: 0x0a0a0a
-  })
-);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = -2;
+
 scene.add(floor);
 
 
-
 /*
-    ATMOSFERA (IMPORTANTE)
+    ATMOSFERA
 */
 scene.background = new THREE.Color(0x2b2b2b);
 scene.fog = new THREE.Fog(0x2b2b2b, 120, 320);
 
-function createTree() {
-  const tree = new THREE.Group();
+/* arvores */
 
-  // TRONCO
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.3, 0.4, 4, 8),
-    new THREE.MeshStandardMaterial({ color: 0x5a3e2b })
-  );
-  trunk.position.y = 2;
-  trunk.castShadow = true;
-  tree.add(trunk);
+// const treeCount = 30;
+// const spacingTree = 4;
 
-  // COPA (folhas)
-  const leaves = new THREE.Mesh(
-    new THREE.SphereGeometry(2.5, 16, 16),
-    new THREE.MeshStandardMaterial({ color: 0x1f7a3a })
-  );
-  leaves.position.y = 5;
-  leaves.castShadow = true;
-  tree.add(leaves);
+// const xLine = 80;
+// const startZ = -80;
 
-  return tree;
-}
+// // 🔹 LINHA ORIGINAL (mantida)
+// for (let i = 0; i < treeCount; i++) {
+//   const tree = createTree();
 
-const treeCount = 30;
-const spacingTree = 4;
+//   tree.position.set(
+//     xLine,
+//     0,
+//     startZ + i * spacingTree
+//   );
 
-const xLine = 80;
-const startZ = -80;
+//   const scale = 0.9 + Math.random() * 0.3;
+//   tree.scale.set(scale, scale, scale);
 
-// 🔹 LINHA ORIGINAL (mantida)
-for (let i = 0; i < treeCount; i++) {
-  const tree = createTree();
+//   scene.add(tree);
+// }
 
-  tree.position.set(
-    xLine,
-    0,
-    startZ + i * spacingTree
-  );
+// // 🔹 FLORESTA
+// const forestDepth = 3; // quantas camadas pra trás
 
-  const scale = 0.9 + Math.random() * 0.3;
-  tree.scale.set(scale, scale, scale);
+// for (let layer = 1; layer <= forestDepth; layer++) {
+//   for (let i = 0; i < treeCount; i++) {
+//     const tree = createTree();
 
-  scene.add(tree);
-}
+//     tree.position.set(
+//       xLine + layer * 3 + Math.random() * 2, // profundidade
+//       0,
+//       startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
+//     );
 
-// 🔹 FLORESTA (camadas extras)
-const forestDepth = 3; // quantas camadas pra trás
+//     const scale = 0.7 + Math.random() * 0.5;
+//     tree.scale.set(scale, scale, scale);
 
-for (let layer = 1; layer <= forestDepth; layer++) {
-  for (let i = 0; i < treeCount; i++) {
-    const tree = createTree();
-
-    tree.position.set(
-      xLine + layer * 3 + Math.random() * 2, // profundidade
-      0,
-      startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
-    );
-
-    const scale = 0.7 + Math.random() * 0.5;
-    tree.scale.set(scale, scale, scale);
-
-    scene.add(tree);
-  }
-}
+//     scene.add(tree);
+//   }
+// }
 
 // BOTO
 
-function createBotoGLTF(url) {
-  const group = new THREE.Group();
-  const loader = new GLTFLoader();
-
-  loader.load(url, (gltf) => {
-    const model = gltf.scene;
-
-    // escala (ajusta se ficar gigante ou minúsculo)
-    model.scale.set(0.02, 0.02, 0.02);
-    model.rotation.y = -Math.PI / 2;
-
-    // deixa rosa 🩷
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.material = child.material.clone();
-        child.material.color.set(0xff6fa5);
-      }
-    });
-
-    group.add(model);
-  });
-
-  return group;
-}
-
-const boto1 = createBotoGLTF('models/scene.gltf');
-boto1.position.set(0, 0.3, 5);
-scene.add(boto1);
-
-const boto2 = createBotoGLTF('models/scene.gltf');
-boto2.position.set(-5, 0.3, 8);
-scene.add(boto2);
+scene.add(boto1, boto2);
 
 /*
     RAFTS
 */
 
-function createRaft() {
-  const raft = new THREE.Group();
-
-  const logCount = 6;
-  const logRadius = 0.25;
-  const logLength = 4.5;
-  const spacing = 0.45;
-
-  const woodMat = new THREE.MeshStandardMaterial({
-    color: 0x8b5a2b,
-    roughness: 0.9,
-    metalness: 0.05
-  });
-
-  // toras principais
-  for (let i = 0; i < logCount; i++) {
-    const log = new THREE.Mesh(
-      new THREE.CylinderGeometry(logRadius, logRadius, logLength, 12),
-      woodMat
-    );
-
-    log.rotation.z = Math.PI / 2;
-
-    log.position.set(
-      0,
-      0,
-      (i - (logCount - 1) / 2) * spacing
-    );
-
-    log.castShadow = true;
-    log.receiveShadow = true;
-
-    raft.add(log);
-  }
-
-  // travessas (pra dar aquele estilo amarrado)
-  const crossMat = new THREE.MeshStandardMaterial({
-    color: 0x5c3b1e,
-    roughness: 1
-  });
-
-  for (let i = -1; i <= 1; i += 2) {
-    const cross = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.15, logCount * spacing + 0.5),
-      crossMat
-    );
-
-    cross.position.set(i * 1.6, 0.1, 0);
-
-    raft.add(cross);
-  }
-
-  return raft;
-}
-
-const raft1 = createRaft();
-raft1.position.set(-6, 0, 2.2);
-raft1.rotation.y = Math.PI;
-scene.add(raft1);
-
-const raft2 = createRaft();
-raft2.position.set(-6, 0, 5.6);
-raft2.rotation.y = Math.PI;
-scene.add(raft2);
+scene.add(raft1, raft2);
 
 function placeBotoInFrontOfRaft(boto, raft, sideOffset = 0) {
   // pega a direção real da jangada (respeitando rotação)
@@ -389,257 +200,30 @@ const spacingY = 1.3;
 /*
     BARCO - MODELO NOVO BASEADO NA IMAGEM
 */
-const ship = new THREE.Group();
+const {
+  ship,
+  deckHeight
+} = createShip();
+
 scene.add(ship);
-
-const boatLength = 16.6;
-const boatWidth = 5.2;
-const hullHeight = 3.3;
-const wallThickness = 0.1;
-const rimHeight = 0.5;
-const rimThickness = 0.18;
-const floorThickness = 0.18;
-
-const hullColor = 0xdddddd;
-const hullDark = 0xbfc4ca;
-const lineColor = 0x2c2c2c;
-
-const innerLength = boatLength - 2 * wallThickness;
-const innerWidth = boatWidth - 2 * wallThickness;
-
-const deckHeight = hullHeight + floorThickness - 0.28;
-
-function createBarge() {
-  const boat = new THREE.Group();
-// por 3
-
-  const hullMaterial = new THREE.MeshStandardMaterial({
-    color: hullColor,
-    roughness: 0.72,
-    metalness: 0.08
-  });
-
-  const darkMaterial = new THREE.MeshStandardMaterial({
-    color: hullDark,
-    roughness: 0.75,
-    metalness: 0.05
-  });
-
-  const lineMaterial = new THREE.MeshStandardMaterial({
-    color: lineColor,
-    roughness: 0.9,
-    metalness: 0.0
-  });
-
-  // fundo externo
-  const bottom = new THREE.Mesh(
-    new THREE.BoxGeometry(boatLength, floorThickness, boatWidth),
-    darkMaterial
-  );
-  bottom.position.y = floorThickness / 2;
-  bottom.castShadow = true;
-  bottom.receiveShadow = true;
-  boat.add(bottom);
-
-  // paredes laterais retas
-  const leftWall = new THREE.Mesh(
-    new THREE.BoxGeometry(boatLength, hullHeight, wallThickness),
-    hullMaterial
-  );
-  leftWall.position.set(0, hullHeight / 2 + floorThickness, boatWidth / 2 - wallThickness / 2);
-  leftWall.castShadow = true;
-  leftWall.receiveShadow = true;
-  boat.add(leftWall);
-
-  const rightWall = new THREE.Mesh(
-    new THREE.BoxGeometry(boatLength, hullHeight, wallThickness),
-    hullMaterial
-  );
-  rightWall.position.set(0, hullHeight / 2 + floorThickness, -boatWidth / 2 + wallThickness / 2);
-  rightWall.castShadow = true;
-  rightWall.receiveShadow = true;
-  boat.add(rightWall);
-
-  // frente e trás retos
-  const frontWall = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, hullHeight, boatWidth - 2 * wallThickness),
-    hullMaterial
-  );
-  frontWall.position.set(boatLength / 2 - wallThickness / 2, hullHeight / 2 + floorThickness, 0);
-  frontWall.castShadow = true;
-  frontWall.receiveShadow = true;
-  boat.add(frontWall);
-
-  const backWall = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, hullHeight, boatWidth - 2 * wallThickness),
-    hullMaterial
-  );
-  backWall.position.set(-boatLength / 2 + wallThickness / 2, hullHeight / 2 + floorThickness, 0);
-  backWall.castShadow = true;
-  backWall.receiveShadow = true;
-  boat.add(backWall);
-
-  // piso interno
-  
-
-  const innerFloor = new THREE.Mesh(
-    new THREE.BoxGeometry(innerLength, 0.08, innerWidth),
-    new THREE.MeshStandardMaterial({
-      color: 0xf4f4f4,
-      roughness: 0.85,
-      metalness: 0.02
-    })
-  );
-  innerFloor.position.y = deckHeight;
-  innerFloor.castShadow = true;
-  innerFloor.receiveShadow = true;
-  boat.add(innerFloor);
-
-  // borda superior
-  const rimLongGeo = new THREE.BoxGeometry(boatLength, rimHeight, rimThickness);
-  const rimShortGeo = new THREE.BoxGeometry(rimThickness, rimHeight, boatWidth);
-
-  const rimLeft = new THREE.Mesh(rimLongGeo, lineMaterial);
-  rimLeft.position.set(0, hullHeight + floorThickness + rimHeight / 2, boatWidth / 2);
-  boat.add(rimLeft);
-
-  const rimRight = new THREE.Mesh(rimLongGeo, lineMaterial);
-  rimRight.position.set(0, hullHeight + floorThickness + rimHeight / 2, -boatWidth / 2);
-  boat.add(rimRight);
-
-  const rimFront = new THREE.Mesh(rimShortGeo, lineMaterial);
-  rimFront.position.set(boatLength / 2, hullHeight + floorThickness + rimHeight / 2, 0);
-  boat.add(rimFront);
-
-  const rimBack = new THREE.Mesh(rimShortGeo, lineMaterial);
-  rimBack.position.set(-boatLength / 2, hullHeight + floorThickness + rimHeight / 2, 0);
-  boat.add(rimBack);
-
-  return boat;
-}
-
-const bargeModel = createBarge();
-bargeModel.position.y = 0.35;
-ship.add(bargeModel);
 
 /*
     CONTAINERS
 */
-const TOTAL_CONTAINERS = 24;
-
-const BLUE = 0x4d79ff;
-const GREEN = 0x3ddc84;
-
-const shipContainers = [];
-const shipCols = 4;
-const shipRows = 4;
-const shipLevels = 3;
-
-const containerWidth = 2.6;
-const containerHeight = 1.13;
-const containerDepth = 1.06;
-
-
-const offsetX = -((shipCols - 1) * spacingX) / 2;
-const offsetZ = -((shipRows - 1) * spacingZ) / 2;
-const baseY =  deckHeight + 1;
-
-const colors = [0xff4d4d, 0x3ddc84, 0x4d79ff, 0xffcc33, 0xff884d];
-
-let created = 0;
-
-const shipLayout = [
-  [
-    ["B", null, "B", null],
-    ["B", "B", "B", "G"],
-    ["B", "B", "G", "B"],
-    [null, null, null, "B"]
-  ],
-  [
-    [null, null, "G", null],
-    ["B", "B", "G", "G"],
-    ["G", "G", "G", "G"],
-    [null, null, null, "G"]
-  ],
-  [
-    [null, null, null, null],
-    [null, "B", "G", null],
-    [null, null, "G", null],
-    [null, null, null, null]
-  ]
-];
-
-
-function getContainerColor(code) {
-  if (code === "B") return BLUE;
-  if (code === "G") return GREEN;
-  return null;
-}
-
-let blueCount = 0;
-let greenCount = 0;
-
-for (let level = 0; level < shipLevels; level++) {
-  for (let row = 0; row < shipRows; row++) {
-    for (let col = 0; col < shipCols; col++) {
-      const code = shipLayout[level][row][col];
-      if (!code) continue;
-
-      const color = getContainerColor(code);
-      if (!color) continue;
-
-      if (code === "B") blueCount++;
-      if (code === "G") greenCount++;
-
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(containerWidth, containerHeight, containerDepth),
-        new THREE.MeshPhongMaterial({ color })
-      );
-
-      box.position.set(
-        offsetX + col * spacingX,
-        baseY + level * spacingY,
-        offsetZ + row * spacingZ
-      );
-
-      box.userData.isUnloaded = false;
-      box.userData.pierSlot = null;
-      box.userData.isOnPier = false;
-      box.userData.isCarriedByHuman = false;
-      box.userData.isDelivered = false;
-      box.userData.isOnRaft = false;
-
-      box.castShadow = true;
-      box.receiveShadow = true;
-
-      ship.add(box);
-      shipContainers.push(box);
-      box.userData.containerId = shipContainers.length;
-      box.userData.originalPosition = box.position.clone();
-      box.userData.shipLevel = level;
-      box.userData.shipRow = row;
-      box.userData.shipCol = col;
-      box.userData.colorCode = code;
-    }
-  }
-}
-
-if (shipContainers.length !== TOTAL_CONTAINERS) {
-  console.warn(`A matriz do barco tem ${shipContainers.length} containers, mas o TOTAL_CONTAINERS está em ${TOTAL_CONTAINERS}.`);
-}
+const {
+  shipContainers,
+  containerWidth,
+} = createShipContainers(ship, deckHeight);
 
 const unloadSequence = [
   22, 1, 16, 12, 21,
   13, 20, 24, 6, 17,
   23, 18, 15, 19, 14,
-  9, 3, 11, 2, 7, 10, 4, 8, 5
+  9, 3, 11, 2, 7,
+  10, 4, 8, 5
 ];
 
 let unloadSequenceIndex = 0;
-
-if (blueCount !== 12 || greenCount !== 12) {
-  console.warn(`Quantidade de cores inválida: azul=${blueCount}, verde=${greenCount}. O esperado é 12 de cada.`);
-}
 
 /*
     PORTO / CAIS
@@ -790,109 +374,14 @@ const pierSlots = [
 
 // humano
 
-// humano estilizado estilo "boto humano"
-const human = new THREE.Group();
+const {
+  human,
+  armLeft,
+  armRight
+} = createHuman();
+
 scene.add(human);
 
-// material principal (roupa branca)
-const whiteMat = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
-  roughness: 0.6
-});
-
-// detalhes rosa
-const pinkMat = new THREE.MeshStandardMaterial({
-  color: 0xff6fa5,
-  roughness: 0.6
-});
-
-// pele
-const skinMat = new THREE.MeshStandardMaterial({
-  color: 0xf1c27d
-});
-
-/*
-  CORPO (terno branco)
-*/
-const body = new THREE.Mesh(
-  new THREE.BoxGeometry(0.6, 1.2, 0.35),
-  whiteMat
-);
-body.position.y = 0.9;
-human.add(body);
-
-/*
-  CABEÇA
-*/
-const head = new THREE.Mesh(
-  new THREE.SphereGeometry(0.25, 16, 16),
-  skinMat
-);
-head.position.y = 1.8;
-human.add(head);
-
-/*
-  PERNAS (brancas)
-*/
-const legGeo = new THREE.BoxGeometry(0.18, 0.9, 0.18);
-
-const legLeft = new THREE.Mesh(legGeo, whiteMat);
-legLeft.position.set(-0.14, 0.4, 0);
-human.add(legLeft);
-
-const legRight = new THREE.Mesh(legGeo, whiteMat);
-legRight.position.set(0.14, 0.4, 0);
-human.add(legRight);
-
-/*
-  BRAÇOS
-*/
-const armGeo = new THREE.BoxGeometry(0.16, 0.8, 0.16);
-
-const armLeft = new THREE.Mesh(armGeo, whiteMat);
-armLeft.position.set(-0.45, 1.05, 0);
-human.add(armLeft);
-
-const armRight = new THREE.Mesh(armGeo, whiteMat);
-armRight.position.set(0.45, 1.05, 0);
-human.add(armRight);
-
-/*
-  CHAPÉU (ESSENCIAL 🔥)
-*/
-// aba
-const hatBrim = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.35, 0.35, 0.05, 20),
-  whiteMat
-);
-hatBrim.position.y = 2.05;
-human.add(hatBrim);
-
-// topo
-const hatTop = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.22, 0.25, 0.3, 20),
-  whiteMat
-);
-hatTop.position.y = 2.2;
-human.add(hatTop);
-
-// faixa rosa do chapéu
-const hatBand = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.255, 0.255, 0.08, 20),
-  pinkMat
-);
-hatBand.position.y = 2.15;
-human.add(hatBand);
-
-/*
-  DETALHE ROSA (lenço no peito)
-*/
-const chestDetail = new THREE.Mesh(
-  new THREE.BoxGeometry(0.15, 0.15, 0.02),
-  pinkMat
-);
-chestDetail.position.set(0.15, 1.1, 0.18);
-human.add(chestDetail);
 
 function isCollidingWithBoxes(nextX, nextZ) {
   if (humanState === "goingToPickup" || humanState === "carryingToDrop") {
@@ -1068,7 +557,7 @@ function updateHuman() {
 
       humanTargetRaftData.assignedBox = humanTargetBox;
 
-      // 🔒 marca que está esperando o humano sair
+      // marca que está esperando o humano sair
       humanTargetRaftData.waitingForHuman = true;
 
       humanTargetBox = null;
