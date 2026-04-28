@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
+import * as THREE from 'three';
 
 export function createHuman() {
   const human = new THREE.Group();

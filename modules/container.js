@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
+import * as THREE from 'three';
 
 export function createShipContainers(ship, deckHeight) {
     const TOTAL_CONTAINERS = 24;
@@ -26,21 +26,21 @@ export function createShipContainers(ship, deckHeight) {
     */
     const shipLayout = [
         [
-            ["B", null, "B", null],
-            ["B", "B", "B", "P"],
-            ["B", "B", "P", "B"],
-            [null, null, null, "B"]
+            [null, "B", "P", "P"],
+            [null, "B", "P", null],
+            [null, "P", "P", "P"],
+            ["P", "P", "B", null]
         ],
         [
-            [null, null, "P", null],
-            ["B", "B", "P", "P"],
-            ["P", "P", "P", "P"],
-            [null, null, null, "P"]
+            [null, "B", "P", null],
+            [null, "B", "P", null],
+            [null, "B", "B", "B"],
+            ["B", "B", "B", null]
         ],
         [
             [null, null, null, null],
-            [null, "B", "P", null],
             [null, null, "P", null],
+            [null, "B", "B", null],
             [null, null, null, null]
         ]
     ];

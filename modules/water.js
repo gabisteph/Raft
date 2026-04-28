@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
+import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
 import { sun } from './environment.js';
 
@@ -13,7 +13,7 @@ let water = new Water(
     textureWidth: 512,
     textureHeight: 512,
     waterNormals: new THREE.TextureLoader().load(
-      'https://threejs.org/examples/textures/waternormals.jpg',
+      'textures/waternormals.jpg',
       function (texture) {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       }

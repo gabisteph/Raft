@@ -1,0 +1,23 @@
+{
+  "name": "raft",
+  "version": "1.0.0",
+  "description": "simular navio de descargue de navio aplicacado a algoritmo genético",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabisteph/Raft.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gabisteph/Raft/issues"
+  },
+  "homepage": "https://github.com/gabisteph/Raft#readme",
+  "dependencies": {
+    "three": "^0.158.0"
+  }
+}

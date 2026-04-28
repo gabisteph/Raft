@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js';
+import * as THREE from 'three';
 import { sky, sun, directionalLight, ambientLight, fillLight } from './modules/environment.js';
 import { water, floor } from './modules/water.js';
 import { createTree } from './modules/forest.js';
@@ -18,7 +18,6 @@ const scene = new THREE.Scene();
     CÂMERA
 */
 
-
 const camera = new THREE.PerspectiveCamera(
   70,
   window.innerWidth / window.innerHeight,
@@ -26,10 +25,10 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 
-camera.position.set(-18, 12, -7);
+/* mais próxima e um pouco mais alta */
+camera.position.set(-16, 15, -6);
+
 camera.lookAt(0, 0, 0);
-
-
 /*
     RENDER
 */
@@ -77,48 +76,37 @@ scene.fog = new THREE.Fog(0x2b2b2b, 120, 320);
 
 /* arvores */
 
-// const treeCount = 30;
-// const spacingTree = 4;
-
-// const xLine = 80;
-// const startZ = -80;
-
-// // 🔹 LINHA ORIGINAL (mantida)
-// for (let i = 0; i < treeCount; i++) {
-//   const tree = createTree();
-
-//   tree.position.set(
-//     xLine,
-//     0,
-//     startZ + i * spacingTree
-//   );
-
-//   const scale = 0.9 + Math.random() * 0.3;
-//   tree.scale.set(scale, scale, scale);
-
-//   scene.add(tree);
-// }
-
-// // 🔹 FLORESTA
-// const forestDepth = 3; // quantas camadas pra trás
-
-// for (let layer = 1; layer <= forestDepth; layer++) {
-//   for (let i = 0; i < treeCount; i++) {
-//     const tree = createTree();
-
-//     tree.position.set(
-//       xLine + layer * 3 + Math.random() * 2, // profundidade
-//       0,
-//       startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
-//     );
-
-//     const scale = 0.7 + Math.random() * 0.5;
-//     tree.scale.set(scale, scale, scale);
-
-//     scene.add(tree);
-//   }
-// }
-
+ const treeCount = 30;
+ const spacingTree = 4
+ const xLine = 80;
+ const startZ = -80
+ // 🔹 LINHA ORIGINAL (mantida)
+ for (let i = 0; i < treeCount; i++) {
+   const tree = createTree()
+   tree.position.set(
+     xLine,
+     0,
+     startZ + i * spacingTree
+   )
+   const scale = 0.9 + Math.random() * 0.3;
+   tree.scale.set(scale, scale, scale)
+   scene.add(tree);
+ }
+ // 🔹 FLORESTA
+ const forestDepth = 3; // quantas camadas pra trás
+ for (let layer = 1; layer <= forestDepth; layer++) {
+   for (let i = 0; i < treeCount; i++) {
+     const tree = createTree();
+     tree.position.set(
+       xLine + layer * 3 + Math.random() * 2, // profundidade
+       0,
+       startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
+     );
+     const scale = 0.7 + Math.random() * 0.5;
+     tree.scale.set(scale, scale, scale);
+     scene.add(tree);
+   }
+ }
 // BOTO
 
 scene.add(boto1, boto2);
@@ -234,8 +222,8 @@ scene.add(port);
 // plataforma principal do cais
 const textureLoader = new THREE.TextureLoader();
 
-const woodTexture = textureLoader.load('https://threejs.org/examples/textures/hardwood2_diffuse.jpg');
-const woodNormal = textureLoader.load('https://threejs.org/examples/textures/hardwood2_normal.jpg');
+const woodTexture = textureLoader.load('textures/hardwood2_diffuse.jpg');
+const woodNormal = textureLoader.load('textures/woodNormal.jpg');
 
 woodTexture.wrapS = THREE.RepeatWrapping;
 woodTexture.wrapT = THREE.RepeatWrapping;
@@ -593,6 +581,38 @@ function updateHuman() {
   }
 }
 
+// vou continuar daqui exatamente com a atualização do HUD de containers
+// porque seu arquivo é enorme e o chat corta parte dele se eu mandar tudo inteiro.
+// então aqui está a parte CORRETA que você precisa substituir
+
+/*
+==================================================
+HUD - CONTAINURS NA TELA
+==================================================
+*/
+
+const containersHUD = document.getElementById("containers");
+const levelHUD = document.querySelector("#gameHUD h2");
+
+let totalContainers = 24; // mesma quantidade do unloadSequence
+
+containersHUD.textContent = totalContainers;
+
+function updateContainersHUD() {
+  containersHUD.textContent = totalContainers;
+
+  if (totalContainers <= 0) {
+    levelHUD.textContent = "MISSION COMPLETE";
+  }
+}
+
+
+/*
+==================================================
+UPDATE RAFTS
+==================================================
+*/
+
 function updateRafts() {
   const raftSpeed = 0.1;
 
@@ -605,7 +625,9 @@ function updateRafts() {
       if (data.assignedBox) {
         data.assignedBox.position.set(
           data.raft.position.x,
-          data.raft.position.y + data.assignedBox.geometry.parameters.height / 2 + 0.35,
+          data.raft.position.y +
+            data.assignedBox.geometry.parameters.height / 2 +
+            0.35,
           data.raft.position.z
         );
       }
@@ -617,10 +639,21 @@ function updateRafts() {
         data.raft.position.x = data.farPosition.x;
         data.raft.position.z = data.farPosition.z;
 
-        // "deixa o container" no destino distante
+        /*
+        ==========================================
+        ENTREGA FINAL DO CONTAINER
+        ==========================================
+        */
+
         if (data.assignedBox) {
           scene.remove(data.assignedBox);
           data.assignedBox = null;
+
+          // 🔥 DIMINUI HUD AQUI
+          if (totalContainers > 0) {
+            totalContainers--;
+            updateContainersHUD();
+          }
         }
 
         data.state = "returning";
@@ -695,41 +728,42 @@ function getPierTargetPosition(level, row, col) {
 let activeMove = null;
 
 function isContainerAccessible(box) {
-  // se houver algum container acima, na mesma linha/coluna, ainda não descarregado,
-  // este container não pode sair
-  return !shipContainers.some(other =>
-    !other.userData.isUnloaded &&
-    other.userData.shipRow === box.userData.shipRow &&
-    other.userData.shipCol === box.userData.shipCol &&
-    other.userData.shipLevel > box.userData.shipLevel
-  );
+  for (const other of shipContainers) {
+    if (other === box) continue;
+
+    if (other.userData.isUnloaded) continue;
+
+    // só verifica containers acima
+    if (other.userData.shipLevel <= box.userData.shipLevel) continue;
+
+    // verifica proximidade real no espaço
+    const sameColumn =
+      Math.abs(other.position.x - box.position.x) < 0.5 &&
+      Math.abs(other.position.z - box.position.z) < 0.5;
+
+    if (sameColumn) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function getNextContainerFromSequence() {
-  while (unloadSequenceIndex < unloadSequence.length) {
-    const wantedId = unloadSequence[unloadSequenceIndex];
+  for (let i = unloadSequenceIndex; i < unloadSequence.length; i++) {
+    const wantedId = unloadSequence[i];
 
     const candidate = shipContainers.find(
       box => box.userData.containerId === wantedId
     );
 
-    // se não encontrou, pula
-    if (!candidate) {
-      unloadSequenceIndex++;
-      continue;
-    }
+    if (!candidate) continue;
 
-    // se já saiu, pula
-    if (candidate.userData.isUnloaded) {
-      unloadSequenceIndex++;
-      continue;
-    }
+    if (candidate.userData.isUnloaded) continue;
 
-    // se não está acessível, espera
-    if (!isContainerAccessible(candidate)) {
-      return null;
-    }
+    if (!isContainerAccessible(candidate)) continue;
 
+    unloadSequenceIndex = i;
     return candidate;
   }
 
