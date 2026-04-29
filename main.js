@@ -76,37 +76,37 @@ scene.fog = new THREE.Fog(0x2b2b2b, 120, 320);
 
 /* arvores */
 
- const treeCount = 30;
- const spacingTree = 4
- const xLine = 80;
- const startZ = -80
- // 🔹 LINHA ORIGINAL (mantida)
- for (let i = 0; i < treeCount; i++) {
-   const tree = createTree()
-   tree.position.set(
-     xLine,
-     0,
-     startZ + i * spacingTree
-   )
-   const scale = 0.9 + Math.random() * 0.3;
-   tree.scale.set(scale, scale, scale)
-   scene.add(tree);
- }
- // 🔹 FLORESTA
- const forestDepth = 3; // quantas camadas pra trás
- for (let layer = 1; layer <= forestDepth; layer++) {
-   for (let i = 0; i < treeCount; i++) {
-     const tree = createTree();
-     tree.position.set(
-       xLine + layer * 3 + Math.random() * 2, // profundidade
-       0,
-       startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
-     );
-     const scale = 0.7 + Math.random() * 0.5;
-     tree.scale.set(scale, scale, scale);
-     scene.add(tree);
-   }
- }
+const treeCount = 30;
+const spacingTree = 4
+const xLine = 80;
+const startZ = -80
+// 🔹 LINHA ORIGINAL (mantida)
+for (let i = 0; i < treeCount; i++) {
+  const tree = createTree()
+  tree.position.set(
+    xLine,
+    0,
+    startZ + i * spacingTree
+  )
+  const scale = 0.9 + Math.random() * 0.3;
+  tree.scale.set(scale, scale, scale)
+  scene.add(tree);
+}
+// 🔹 FLORESTA
+const forestDepth = 3; // quantas camadas pra trás
+for (let layer = 1; layer <= forestDepth; layer++) {
+  for (let i = 0; i < treeCount; i++) {
+    const tree = createTree();
+    tree.position.set(
+      xLine + layer * 3 + Math.random() * 2, // profundidade
+      0,
+      startZ + i * spacingTree + (Math.random() - 0.5) * 2 // bagunça natural
+    );
+    const scale = 0.7 + Math.random() * 0.5;
+    tree.scale.set(scale, scale, scale);
+    scene.add(tree);
+  }
+}
 // BOTO
 
 scene.add(boto1, boto2);
@@ -204,11 +204,9 @@ const {
 } = createShipContainers(ship, deckHeight);
 
 const unloadSequence = [
-  22, 1, 16, 12, 21,
-  13, 20, 24, 6, 17,
-  23, 18, 15, 19, 14,
-  9, 3, 11, 2, 7,
-  10, 4, 8, 5
+  22, 18, 24,
+  13, 21, 23, 15, 20, 17, 12, 16, 14, 19,
+  3, 11, 2, 6, 9, 8, 1, 10, 5, 7, 4
 ];
 
 let unloadSequenceIndex = 0;
@@ -520,7 +518,7 @@ function updateHuman() {
       0,
       raftDropPoint.z - human.position.z
     ).normalize();
-    
+
 
     humanTargetBox.position.set(
       human.position.x + dir.x * carryOffset,
@@ -581,27 +579,39 @@ function updateHuman() {
   }
 }
 
-// vou continuar daqui exatamente com a atualização do HUD de containers
-// porque seu arquivo é enorme e o chat corta parte dele se eu mandar tudo inteiro.
-// então aqui está a parte CORRETA que você precisa substituir
-
 /*
 ==================================================
-HUD - CONTAINURS NA TELA
+HUD - CONTAINERS NA TELA
 ==================================================
 */
 
 const containersHUD = document.getElementById("containers");
+const remainingHUD = document.getElementById("remainingContainers");
 const levelHUD = document.querySelector("#gameHUD h2");
 
-let totalContainers = 24; // mesma quantidade do unloadSequence
+const TOTAL_CONTAINERS = 24;
 
-containersHUD.textContent = totalContainers;
+/*
+ENTREGUES → 0 até 24
+*/
+let deliveredContainers = 0;
+
+/*
+RESTANTES NO BARCO → 24 até 0
+*/
+let remainingContainers = 24;
+
+/*
+HUD inicial
+*/
+containersHUD.textContent = deliveredContainers;
+remainingHUD.textContent = remainingContainers;
 
 function updateContainersHUD() {
-  containersHUD.textContent = totalContainers;
+  containersHUD.textContent = deliveredContainers;
+  remainingHUD.textContent = remainingContainers;
 
-  if (totalContainers <= 0) {
+  if (deliveredContainers >= TOTAL_CONTAINERS) {
     levelHUD.textContent = "MISSION COMPLETE";
   }
 }
@@ -626,8 +636,8 @@ function updateRafts() {
         data.assignedBox.position.set(
           data.raft.position.x,
           data.raft.position.y +
-            data.assignedBox.geometry.parameters.height / 2 +
-            0.35,
+          data.assignedBox.geometry.parameters.height / 2 +
+          0.35,
           data.raft.position.z
         );
       }
@@ -646,14 +656,16 @@ function updateRafts() {
         */
 
         if (data.assignedBox) {
+          data.assignedBox.userData.isDelivered = true;
+
           scene.remove(data.assignedBox);
           data.assignedBox = null;
 
-          // 🔥 DIMINUI HUD AQUI
-          if (totalContainers > 0) {
-            totalContainers--;
-            updateContainersHUD();
+          if (deliveredContainers < TOTAL_CONTAINERS) {
+            deliveredContainers++;
           }
+
+          updateContainersHUD();
         }
 
         data.state = "returning";
@@ -731,15 +743,17 @@ function isContainerAccessible(box) {
   for (const other of shipContainers) {
     if (other === box) continue;
 
+    // se já saiu do navio, ignora
     if (other.userData.isUnloaded) continue;
+    if (other.userData.isDelivered) continue;
 
-    // só verifica containers acima
+    // só importa quem está acima
     if (other.userData.shipLevel <= box.userData.shipLevel) continue;
 
-    // verifica proximidade real no espaço
+    // usa IDs estruturais em vez de posição visual
     const sameColumn =
-      Math.abs(other.position.x - box.position.x) < 0.5 &&
-      Math.abs(other.position.z - box.position.z) < 0.5;
+      other.userData.shipRow === box.userData.shipRow &&
+      other.userData.shipCol === box.userData.shipCol;
 
     if (sameColumn) {
       return false;
@@ -759,11 +773,20 @@ function getNextContainerFromSequence() {
 
     if (!candidate) continue;
 
-    if (candidate.userData.isUnloaded) continue;
+    if (
+      candidate.userData.isUnloaded ||
+      candidate.userData.isDelivered
+    ) {
+      continue;
+    }
 
-    if (!isContainerAccessible(candidate)) continue;
+    if (!isContainerAccessible(candidate)) {
+      continue;
+    }
 
+    // salva onde parou
     unloadSequenceIndex = i;
+
     return candidate;
   }
 
@@ -771,7 +794,11 @@ function getNextContainerFromSequence() {
 }
 
 function isUnloadSequenceFinished() {
-  return unloadSequenceIndex >= unloadSequence.length;
+  const remaining = shipContainers.filter(box =>
+    !box.userData.isDelivered
+  );
+
+  return remaining.length === 0;
 }
 
 function unloadContainers() {
@@ -866,6 +893,16 @@ function unloadContainers() {
       movingBox.userData.isUnloaded = true;
       movingBox.userData.isOnPier = true;
 
+      /*
+      REMOVE DO CONTADOR DO BARCO
+      assim que chega no pier
+      */
+      if (remainingContainers > 0) {
+        remainingContainers--;
+      }
+
+      updateContainersHUD();
+
       unloadSequenceIndex++;
       activeMove = null;
     }
@@ -895,7 +932,7 @@ function animate() {
     armLeft.rotation.x = -1.2;
     armRight.rotation.x = -1.2;
   }
-  
+
 
   // updateWater(time)
 
@@ -915,7 +952,7 @@ function animate() {
   }
 
   else if (state === "unloading") {
-  unloadContainers();
+    unloadContainers();
 
     if (isUnloadSequenceFinished()) {
       state = "stopped";
@@ -961,61 +998,61 @@ function animate() {
       state = "moving";
     }
   }
-  water.material.uniforms[ 'time' ].value += 1.0 / 60.0;
+  water.material.uniforms['time'].value += 1.0 / 60.0;
   const botoRaftPairs = [
-  { boto: boto1, raft: raft1, sideOffset: -0.8 },
-  { boto: boto2, raft: raft2, sideOffset: 0.8 }
-];
+    { boto: boto1, raft: raft1, sideOffset: -0.8 },
+    { boto: boto2, raft: raft2, sideOffset: 0.8 }
+  ];
 
-for (const pair of botoRaftPairs) {
-  const { boto, raft, sideOffset } = pair;
+  for (const pair of botoRaftPairs) {
+    const { boto, raft, sideOffset } = pair;
 
-  const direction = new THREE.Vector3()
-    .subVectors(raft.position, raft.userData.prevPosition);
+    const direction = new THREE.Vector3()
+      .subVectors(raft.position, raft.userData.prevPosition);
 
-  if (direction.length() < 0.001) continue;
+    if (direction.length() < 0.001) continue;
 
-  direction.normalize();
+    direction.normalize();
 
-  const side = new THREE.Vector3(-direction.z, 0, direction.x);
+    const side = new THREE.Vector3(-direction.z, 0, direction.x);
 
-  const frontDistance = 4.5;
+    const frontDistance = 4.5;
 
-  const target = raft.position.clone()
-    .add(direction.clone().multiplyScalar(frontDistance))
-    .add(side.multiplyScalar(sideOffset));
+    const target = raft.position.clone()
+      .add(direction.clone().multiplyScalar(frontDistance))
+      .add(side.multiplyScalar(sideOffset));
 
-  // movimento suave
-  boto.position.lerp(target, 0.08);
+    // movimento suave
+    boto.position.lerp(target, 0.08);
 
-  // =========================
-  // 🔥 DETECÇÃO DE "COLISÃO"
-  // =========================
-  const distanceToRaft = boto.position.distanceTo(raft.position);
+    // =========================
+    //  DETECÇÃO DE "COLISÃO"
+    // =========================
+    const distanceToRaft = boto.position.distanceTo(raft.position);
 
-  const isUnderRaft = distanceToRaft < 3.5; // ajusta esse valor
+    const isUnderRaft = distanceToRaft < 3.5; // ajusta esse valor
 
-  if (isUnderRaft) {
-    // mergulha
-    boto.position.y = THREE.MathUtils.lerp(boto.position.y, -0.8, 0.1);
-  } else {
-    // volta pra superfície com ondinha
-    const floatY = 0.3 + Math.sin(Date.now() * 0.003) * 0.08;
-    boto.position.y = THREE.MathUtils.lerp(boto.position.y, floatY, 0.1);
+    if (isUnderRaft) {
+      // mergulha
+      boto.position.y = THREE.MathUtils.lerp(boto.position.y, -0.8, 0.1);
+    } else {
+      // volta pra superfície com ondinha
+      const floatY = 0.3 + Math.sin(Date.now() * 0.003) * 0.08;
+      boto.position.y = THREE.MathUtils.lerp(boto.position.y, floatY, 0.1);
+    }
+
+    // rotação
+    boto.rotation.y = Math.atan2(-direction.z, direction.x);
   }
-
-  // rotação
-  boto.rotation.y = Math.atan2(-direction.z, direction.x);
-}
 
   raft1.userData.prevPosition.copy(raft1.position);
   raft2.userData.prevPosition.copy(raft2.position);
 
-    updateHuman();
-    updateRafts();
+  updateHuman();
+  updateRafts();
 
-    renderer.render(scene, camera);
-  }
+  renderer.render(scene, camera);
+}
 
 animate();
 
